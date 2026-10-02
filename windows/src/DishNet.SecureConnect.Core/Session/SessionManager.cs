@@ -1,4 +1,5 @@
 using DishNet.SecureConnect.Core.Api;
+using DishNet.SecureConnect.Core.Onboarding;
 using DishNet.SecureConnect.Core.Secrets;
 using DishNet.SecureConnect.Core.Tunnel;
 
@@ -40,10 +41,13 @@ public sealed class SessionManager
     private string? _lastError;
     private bool _wantUp;
 
-    public SessionManager(ApiClient api, DeviceIdentityStore store, ITunnelController tunnel, string apiOrigin, string osDescription, Func<DateTimeOffset>? now = null, IGatewaySetup? gateway = null)
+    private readonly IReachabilityProbe? _probe;
+
+    public SessionManager(ApiClient api, DeviceIdentityStore store, ITunnelController tunnel, string apiOrigin, string osDescription, Func<DateTimeOffset>? now = null, IGatewaySetup? gateway = null, IReachabilityProbe? probe = null)
     {
         _api = api;
         _gateway = gateway;
+        _probe = probe;
         _store = store;
         _tunnel = tunnel;
         _apiOrigin = apiOrigin;
@@ -57,6 +61,9 @@ public sealed class SessionManager
     public DeviceConfig? Config => _config;
     public string? LastError => _lastError;
     public string? GatewayNote { get; private set; }
+    /// <summary>Set by the app from the operator's explicit, explained consent. Without it the app never touches Remote Desktop or the firewall.</summary>
+    public bool GatewayConsentGranted { get; set; }
+    public ProbeResult LastProbe { get; private set; } = ProbeResult.NotChecked;
     public event Action? Changed;
 
     private void Notify() => Changed?.Invoke();
@@ -160,11 +167,7 @@ public sealed class SessionManager
             var text = TunnelConfigRenderer.Render(cfg, id.PrivateKey);
             await _tunnel.StartAsync(text, ct);
             _lastError = null;
-            if (cfg.IsGateway && _gateway is not null)
-            {
-                try { GatewayNote = await _gateway.ApplyAsync(cfg.GatewayPorts, cfg.VpnPool, ct); }
-                catch (Exception ex) when (ex is not OperationCanceledException) { GatewayNote = "Remote Desktop could not be enabled automatically: " + ex.Message; }
-            }
+            if (cfg.IsGateway) await ApplyGatewaySetupIfAllowedAsync(cfg, ct);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -182,6 +185,48 @@ public sealed class SessionManager
             _wantUp = false;
         }
         Notify();
+    }
+
+    /// <summary>Runs the office-gateway preparation only when the operator has consented; otherwise explains what is pending.</summary>
+    public async Task ApplyGatewaySetupIfAllowedAsync(DeviceConfig cfg, CancellationToken ct)
+    {
+        if (!cfg.IsGateway || _gateway is null) return;
+        if (!GatewayConsentGranted)
+        {
+            GatewayNote = "Remote Desktop is not enabled yet. Click \"Allow Remote Desktop for DishNet users\" so staff can reach this computer.";
+            Notify();
+            return;
+        }
+        try { GatewayNote = await _gateway.ApplyAsync(cfg.GatewayPorts, cfg.VpnPool, ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { GatewayNote = "Remote Desktop could not be enabled: " + ex.Message; }
+        Notify();
+    }
+
+    /// <summary>Called after the operator consents: applies immediately if the tunnel is already up.</summary>
+    public async Task GrantGatewayConsentAsync(CancellationToken ct)
+    {
+        GatewayConsentGranted = true;
+        if (_config is { IsGateway: true } cfg && (await _tunnel.GetStatusAsync(ct)).Running) await ApplyGatewaySetupIfAllowedAsync(cfg, ct);
+        else Notify();
+    }
+
+    /// <summary>
+    /// Tests whether the office computer answers on its allowed port through
+    /// the tunnel (only meaningful for a client device while Connected).
+    /// </summary>
+    public async Task<ProbeResult> ProbeOfficeAsync(CancellationToken ct)
+    {
+        var cfg = _config;
+        if (_probe is null || cfg is null || cfg.IsGateway || cfg.Access.Count == 0) { LastProbe = ProbeResult.NotChecked; return LastProbe; }
+        var status = await _tunnel.GetStatusAsync(ct);
+        if (!status.IsHealthy(_now())) { LastProbe = ProbeResult.NotChecked; return LastProbe; }
+        var target = cfg.Access.FirstOrDefault(a => a.Ports.Contains(3389)) ?? cfg.Access[0];
+        var port = target.Ports.Contains(3389) ? 3389 : target.Ports.FirstOrDefault();
+        var host = target.Target.Split('/')[0];
+        if (port == 0 || string.IsNullOrEmpty(host)) { LastProbe = ProbeResult.NotChecked; return LastProbe; }
+        LastProbe = await _probe.ProbeAsync(host, port, TimeSpan.FromSeconds(4), ct);
+        Notify();
+        return LastProbe;
     }
 
     public async Task DisconnectAsync(CancellationToken ct)

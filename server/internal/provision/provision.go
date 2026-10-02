@@ -70,6 +70,9 @@ type Config struct {
 	HubAddresses []netip.Addr
 	Keepalive    int
 	VPNPool      string // e.g. 10.20.0.0/24, advertised to gateways for their local firewall scope
+	// SupportContact is the single source of the "contact DishNet" text shown
+	// in the app, on public pages and in the manual (DISHNET_SUPPORT_CONTACT).
+	SupportContact string
 }
 
 type Service struct {
@@ -516,22 +519,23 @@ func (s *Service) Activate(ctx context.Context, in ActivateRequest) (ActivateRes
 // ---------- device configuration ----------
 
 type DeviceConfig struct {
-	DeviceID      int64          `json:"device_id"`
-	DeviceName    string         `json:"device_name"`
-	Role          store.Role     `json:"role"`
-	CustomerName  string         `json:"customer_name"`
-	Address       string         `json:"address"` // "10.20.0.18/32"
-	HubPublicKey  string         `json:"hub_public_key"`
-	Endpoint      string         `json:"endpoint"`
-	AllowedIPs    []string       `json:"allowed_ips"`
-	Keepalive     int            `json:"persistent_keepalive"`
-	DNS           []string       `json:"dns"`
-	Access        []AccessTarget `json:"access"`
-	ConfigVersion int            `json:"config_version"`
-	GatewayPorts  []int          `json:"gateway_ports"` // gateway only: TCP ports clients are allowed to reach on it (for its local firewall)
-	VPNPool       string         `json:"vpn_pool"`      // the hub's VPN range, e.g. 10.20.0.0/24 (gateway firewall scope)
-	Plan          string         `json:"plan"`          // trial | paid | unlimited
-	ExpiresAt     string         `json:"subscription_expires_at,omitempty"`
+	DeviceID       int64          `json:"device_id"`
+	DeviceName     string         `json:"device_name"`
+	Role           store.Role     `json:"role"`
+	CustomerName   string         `json:"customer_name"`
+	Address        string         `json:"address"` // "10.20.0.18/32"
+	HubPublicKey   string         `json:"hub_public_key"`
+	Endpoint       string         `json:"endpoint"`
+	AllowedIPs     []string       `json:"allowed_ips"`
+	Keepalive      int            `json:"persistent_keepalive"`
+	DNS            []string       `json:"dns"`
+	Access         []AccessTarget `json:"access"`
+	ConfigVersion  int            `json:"config_version"`
+	GatewayPorts   []int          `json:"gateway_ports"`   // gateway only: TCP ports clients are allowed to reach on it (for its local firewall)
+	VPNPool        string         `json:"vpn_pool"`        // the hub's VPN range, e.g. 10.20.0.0/24 (gateway firewall scope)
+	Plan           string         `json:"plan"`            // trial | paid | unlimited
+	SupportContact string         `json:"support_contact"` // e.g. "WhatsApp 0705 993 348"
+	ExpiresAt      string         `json:"subscription_expires_at,omitempty"`
 }
 
 type AccessTarget struct {
@@ -610,7 +614,7 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 			DeviceID: d.ID, DeviceName: d.Name, Role: d.Role, CustomerName: c.Name,
 			Address: netip.PrefixFrom(d.VPNIP, 32).String(), HubPublicKey: hubKey, Endpoint: s.cfg.Endpoint,
 			Keepalive: s.cfg.Keepalive, DNS: []string{}, ConfigVersion: d.ConfigVersion, AllowedIPs: []string{}, Plan: string(c.Plan),
-			GatewayPorts: []int{}, VPNPool: s.cfg.VPNPool,
+			GatewayPorts: []int{}, VPNPool: s.cfg.VPNPool, SupportContact: s.cfg.SupportContact,
 		}
 		if d.Role == store.RoleGateway {
 			seen := map[int]bool{}

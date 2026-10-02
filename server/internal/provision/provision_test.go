@@ -38,7 +38,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { db.Close() })
 	h := &harness{t: t, wg: wg.NewFake(), fw: &firewall.Fake{}, router: &FakeRouter{}, ctx: context.Background(), now: time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)}
-	h.svc = New(Config{Interface: "wg0", Endpoint: "165.227.89.92:51820", HubAddresses: []netip.Addr{netip.MustParseAddr("10.20.0.1")}, VPNPool: "10.20.0.0/24"}, db, h.wg, h.fw, h.router,
+	h.svc = New(Config{Interface: "wg0", Endpoint: "165.227.89.92:51820", HubAddresses: []netip.Addr{netip.MustParseAddr("10.20.0.1")}, VPNPool: "10.20.0.0/24", SupportContact: "WhatsApp 0705 993 348"}, db, h.wg, h.fw, h.router,
 		slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
 	h.svc.SetClock(func() time.Time { return h.now })
 	if err := h.svc.EnsurePool(h.ctx, "primary", netip.MustParsePrefix("10.20.0.0/24"), 28); err != nil {
@@ -115,6 +115,9 @@ func TestActivationProvisionsPeerAndReturnsConfig(t *testing.T) {
 	}
 	if len(cl.Config.Access) != 1 || cl.Config.Access[0].Target != "10.20.0.17" || len(cl.Config.Access[0].Ports) != 2 {
 		t.Fatalf("client access list %+v", cl.Config.Access)
+	}
+	if cl.Config.SupportContact != "WhatsApp 0705 993 348" {
+		t.Fatalf("support contact not delivered: %q", cl.Config.SupportContact)
 	}
 	if cl.Config.HubPublicKey != h.wg.Key || cl.Config.Endpoint != "165.227.89.92:51820" || cl.Config.Keepalive != 25 {
 		t.Fatalf("hub parameters wrong: %+v", cl.Config)

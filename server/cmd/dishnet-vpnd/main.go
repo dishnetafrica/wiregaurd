@@ -135,7 +135,7 @@ func buildService(cfg Config, log *slog.Logger) (*provision.Service, error) {
 			hubAddrs = append(hubAddrs, a)
 		}
 	}
-	svc := provision.New(provision.Config{Interface: cfg.Interface, Endpoint: cfg.Endpoint, HubAddresses: hubAddrs, VPNPool: cfg.PoolCIDR}, db, backend, fw, router, log)
+	svc := provision.New(provision.Config{Interface: cfg.Interface, Endpoint: cfg.Endpoint, HubAddresses: hubAddrs, VPNPool: cfg.PoolCIDR, SupportContact: cfg.SupportText}, db, backend, fw, router, log)
 	pool, err := netip.ParsePrefix(cfg.PoolCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("DISHNET_POOL: %w", err)

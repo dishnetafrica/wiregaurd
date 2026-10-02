@@ -178,7 +178,7 @@ public class GatewaySetupHookTests
     }
 
     [Fact]
-    public async Task GatewayConnect_AppliesPortsAndPool()
+    public async Task GatewaySetup_RunsOnlyAfterExplicitConsent()
     {
         var api = new FakeApi
         {
@@ -187,10 +187,19 @@ public class GatewaySetupHookTests
                 : (System.Net.HttpStatusCode.OK, Gw()),
         };
         var gw = new FakeGateway();
+        var tunnel = new FakeTunnel();
         var store = new DishNet.SecureConnect.Core.Secrets.DeviceIdentityStore(Path.Combine(Path.GetTempPath(), "dn-gw-" + Guid.NewGuid(), "id.bin"), new DishNet.SecureConnect.Core.Secrets.InsecureXorProtector());
-        var sm = new DishNet.SecureConnect.Core.Session.SessionManager(new DishNet.SecureConnect.Core.Api.ApiClient(new HttpClient(api) { BaseAddress = new Uri("https://vpn.test") }, "t"), store, new FakeTunnel(), "https://vpn.test", "win", gateway: gw);
+        var sm = new DishNet.SecureConnect.Core.Session.SessionManager(new DishNet.SecureConnect.Core.Api.ApiClient(new HttpClient(api) { BaseAddress = new Uri("https://vpn.test") }, "t"), store, tunnel, "https://vpn.test", "win", gateway: gw);
         await sm.ActivateAsync("DN-J668-7GMJ-NFW7-XLCP", "Office", null, default);
+
+        // No consent: the tunnel comes up but Remote Desktop / firewall are NOT touched, and the note says what is pending.
         await sm.ConnectAsync(default);
+        Xunit.Assert.True(tunnel.Running);
+        Xunit.Assert.Null(gw.Ports);
+        Xunit.Assert.Contains("not enabled yet", sm.GatewayNote);
+
+        // Consent given in the app: applied immediately because the tunnel is already up.
+        await sm.GrantGatewayConsentAsync(default);
         Xunit.Assert.Equal(new[] { 3389, 9000 }, gw.Ports);
         Xunit.Assert.Equal("10.20.0.0/24", gw.Pool);
         Xunit.Assert.Equal("ok", sm.GatewayNote);
@@ -203,4 +212,94 @@ public class GatewaySetupHookTests
         allowed_ips = new[] { "10.20.0.64/28" }, persistent_keepalive = 25, dns = Array.Empty<string>(), access = Array.Empty<object>(),
         config_version = 1, gateway_ports = new[] { 3389, 9000 }, vpn_pool = "10.20.0.0/24", plan = "trial",
     };
+}
+
+public class ChecklistTests
+{
+    private static readonly DishNet.SecureConnect.Core.Api.DeviceConfig Client = new()
+    {
+        DeviceName = "Laptop", CustomerName = "Kampala Traders", Role = "client",
+        Access = new[] { new DishNet.SecureConnect.Core.Api.AccessTarget { Label = "Office server", Target = "10.20.0.17", Proto = "tcp", Ports = new[] { 3389 } } },
+    };
+    private static readonly DishNet.SecureConnect.Core.Onboarding.UserSettings Fresh = new();
+
+    [Fact]
+    public void NothingIsDoneBeforeActivation()
+    {
+        var steps = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(false, null, DishNet.SecureConnect.Core.Session.ConnectionState.NotActivated, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked, Fresh);
+        Xunit.Assert.Equal(6, steps.Count);
+        Xunit.Assert.All(steps, s => Xunit.Assert.False(s.IsDone));
+        Xunit.Assert.StartsWith("Enter your activation code", DishNet.SecureConnect.Core.Onboarding.Checklist.NextAction(steps));
+    }
+
+    [Fact]
+    public void HandshakeAloneDoesNotMarkOfficeReachable()
+    {
+        var steps = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked, Fresh);
+        Xunit.Assert.True(steps[2].IsDone);                       // VPN verified by handshake
+        Xunit.Assert.False(steps[3].IsDone);                      // office: still being checked
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.StepStatus.Pending, steps[3].Status);
+        var reachable = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, Fresh);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.StepStatus.Verified, reachable[3].Status);
+        var down = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable, Fresh);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.StepStatus.Attention, down[3].Status);
+        Xunit.Assert.Contains("switched on", down[3].Detail);
+    }
+
+    [Fact]
+    public void ManualStepsOnlyCompleteWhenCustomerConfirms()
+    {
+        var steps = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, Fresh);
+        Xunit.Assert.False(steps[4].IsDone); Xunit.Assert.True(steps[4].IsManual);
+        Xunit.Assert.False(steps[5].IsDone); Xunit.Assert.True(steps[5].IsManual);
+        var confirmed = Fresh with { ConfirmedRdpInstructionsAt = DateTimeOffset.UtcNow, ConfirmedTallyOpenedAt = DateTimeOffset.UtcNow };
+        var done = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, confirmed);
+        Xunit.Assert.All(done, s => Xunit.Assert.True(s.IsDone));
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.StepStatus.Confirmed, done[5].Status);
+        Xunit.Assert.StartsWith("All set", DishNet.SecureConnect.Core.Onboarding.Checklist.NextAction(done));
+    }
+
+    [Fact]
+    public void NoOfficeRegistered_IsFlagged()
+    {
+        var cfg = Client with { Access = Array.Empty<DishNet.SecureConnect.Core.Api.AccessTarget>() };
+        var steps = DishNet.SecureConnect.Core.Onboarding.Checklist.Build(true, cfg, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked, Fresh);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.StepStatus.Attention, steps[3].Status);
+        Xunit.Assert.Contains("not registered your office computer", steps[3].Detail);
+    }
+
+    [Fact]
+    public void SettingsStore_RoundTrips_AndContainsNoSecrets()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "dn-settings-" + Guid.NewGuid(), "settings.json");
+        var store = new DishNet.SecureConnect.Core.Onboarding.UserSettingsStore(path);
+        Xunit.Assert.False(store.Current.TourDone);
+        store.Update(s => s with { TourCompletedAt = DateTimeOffset.UnixEpoch, GatewayConsentAt = DateTimeOffset.UnixEpoch });
+        var again = new DishNet.SecureConnect.Core.Onboarding.UserSettingsStore(path);
+        Xunit.Assert.True(again.Current.TourDone);
+        Xunit.Assert.True(again.Current.GatewayConsentGiven);
+        var raw = File.ReadAllText(path);
+        Xunit.Assert.DoesNotContain("key", raw, StringComparison.OrdinalIgnoreCase);
+        Xunit.Assert.DoesNotContain("token", raw, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Probe_TargetsOfficeRdpPort_OnlyWhenConnected()
+    {
+        var api = new FakeApi { Handler = (req, _) => req.RequestUri!.AbsolutePath == "/api/v1/activate" ? (System.Net.HttpStatusCode.Created, new { device_token = "dnd_t", config = FakeApi.Config() }) : (System.Net.HttpStatusCode.OK, FakeApi.Config()) };
+        var probe = new DishNet.SecureConnect.Core.Onboarding.FakeReachabilityProbe(DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable);
+        var tunnel = new FakeTunnel();
+        var now = new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
+        var store = new DishNet.SecureConnect.Core.Secrets.DeviceIdentityStore(Path.Combine(Path.GetTempPath(), "dn-probe-" + Guid.NewGuid(), "id.bin"), new DishNet.SecureConnect.Core.Secrets.InsecureXorProtector());
+        var sm = new DishNet.SecureConnect.Core.Session.SessionManager(new DishNet.SecureConnect.Core.Api.ApiClient(new HttpClient(api) { BaseAddress = new Uri("https://vpn.test") }, "t"), store, tunnel, "https://vpn.test", "win", () => now, probe: probe);
+        await sm.ActivateAsync("DN-J668-7GMJ-NFW7-XLCP", "Laptop", null, default);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked, await sm.ProbeOfficeAsync(default)); // tunnel down: not probed
+        Xunit.Assert.Null(probe.LastTarget);
+        await sm.ConnectAsync(default);
+        tunnel.Handshake = now;
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, await sm.ProbeOfficeAsync(default));
+        Xunit.Assert.Equal(("10.20.0.17", 3389), probe.LastTarget);
+        probe.Result = DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable;
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable, await sm.ProbeOfficeAsync(default));
+    }
 }
