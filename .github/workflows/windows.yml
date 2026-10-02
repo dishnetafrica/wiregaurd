@@ -16,3 +16,44 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet test windows/DishNetSecureConnect.sln --nologo -v q
+
+  installer:
+    # Full Windows build: self-contained app + official WireGuard MSI + Inno Setup installer.
+    needs: core
+    runs-on: windows-latest
+    env:
+      WIREGUARD_MSI_URL: https://download.wireguard.com/windows-client/wireguard-amd64-0.5.3.msi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Version
+        id: v
+        shell: bash
+        run: |
+          v=$(grep -oP '<Version>\K[^<]+' windows/Directory.Build.props)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Publish app (self-contained win-x64)
+        run: dotnet publish windows/src/DishNet.SecureConnect.App -c Release -r win-x64 --self-contained -o windows/publish -p:DebugType=none
+      - name: Download official WireGuard for Windows package
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri $env:WIREGUARD_MSI_URL -OutFile windows/wireguard-amd64.msi
+          $h = (Get-FileHash windows/wireguard-amd64.msi -Algorithm SHA256).Hash
+          "WireGuard MSI sha256: $h" | Tee-Object -FilePath windows/publish/WIREGUARD-MSI-SHA256.txt
+          # Authenticode signature must be valid and from WireGuard LLC — refuse anything else.
+          $sig = Get-AuthenticodeSignature windows/wireguard-amd64.msi
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "Unexpected signature on WireGuard MSI: $($sig.Status) $($sig.SignerCertificate.Subject)" }
+          "Signer: $($sig.SignerCertificate.Subject)"
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=${{ steps.v.outputs.version }}" "/DPublishDir=..\publish" "/DWireGuardMsi=..\wireguard-amd64.msi" windows\installer\DishNetSecureConnect.iss
+          Get-ChildItem windows\installer\output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DishNetSecureConnect-Setup
+          path: windows/installer/output/*.exe

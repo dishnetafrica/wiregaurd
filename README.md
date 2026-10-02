@@ -9,7 +9,7 @@ Powered by WireGuard®.
 |---|---|---|
 | Management service (`dishnet-vpnd`): device API, admin dashboard, WireGuard + nftables provisioner | `server/` | **Live** at https://vpn.dishnetuganda.com (v0.1.0) |
 | Hub deployment: preflight audit, installer (dry-run by default), rollback, systemd, Caddy | `deploy/` | **Deployed to 165.227.89.92 on 2026-10-02** (v0.1.0) |
-| Windows client + installer | `windows/` | Phase 3 — core library + 33 tests done; WPF app, service integration, installer next |
+| Windows client + installer | `windows/` | Phase 3 — app, Windows integration and installer built; CI produces `DishNetSecureConnect-Setup-<ver>.exe`; awaiting Phase 4 on real hardware |
 
 ## Documents
 

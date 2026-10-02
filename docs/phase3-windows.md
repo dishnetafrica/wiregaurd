@@ -1,7 +1,8 @@
 # Phase 3 — Windows client
 
-Status: **core library implemented and tested (33 tests); WPF app, Windows
-service integration and installer not started.**
+Status: **app, Windows integration and installer implemented; builds
+cross-compiled here, installer produced by CI on `windows-latest`. Not yet
+run on a real Windows machine (Phase 4).**
 
 ## What exists (`windows/`)
 
@@ -9,6 +10,9 @@ service integration and installer not started.**
 |---|---|---|
 | `src/DishNet.SecureConnect.Core` | net8.0 (cross-platform) | Everything that can be tested without Windows: API client with typed error mapping, WireGuard config renderer with safety checks, X25519 key pairs (BouncyCastle), protected identity store, connection state machine, session orchestration (activate → connect → heartbeat → revoke), log redaction. |
 | `tests/DishNet.SecureConnect.Core.Tests` | net8.0 | xunit; runs in CI on Linux. |
+| `src/DishNet.SecureConnect.Windows` | net8.0-windows | `DpapiProtector` (machine-scope DPAPI), `WireGuardTunnelController` (official `wireguard.exe /installtunnelservice` integration, status via the tunnel's named pipe), data directory with SYSTEM+Administrators-only ACL, startup registration, redacted diagnostics zip. |
+| `src/DishNet.SecureConnect.App` | WPF net8.0-windows | Red/white UI: activation screen, status card (Connected / Connecting / Reconnecting / Access revoked / Problem), Connect / Disconnect, business + device + VPN address + office targets, Start with Windows, Save diagnostics, Reset device. Requires administrator (manifest) — the reason is stated on the activation screen. |
+| `installer/` | Inno Setup | `DishNetSecureConnect-Setup-<ver>.exe`: self-contained app + the official signed WireGuard for Windows MSI (installed silently, `DO_NOT_LAUNCH=1`) + third-party notices. Uninstall removes the tunnel service and the device identity. |
 
 Design points already enforced in code:
 
@@ -27,23 +31,41 @@ Design points already enforced in code:
 * `Redactor` strips private keys, device tokens, activation codes and
   passwords from anything destined for logs or the diagnostics bundle.
 
-## Next (in order)
+## Tunnel integration decision
 
-1. **`DishNet.SecureConnect.Windows`** (net8.0-windows): `DpapiProtector`;
+The app drives the tunnel through **WireGuard for Windows' documented
+tunnel-service CLI** (`wireguard.exe /installtunnelservice <conf>` /
+`/uninstalltunnelservice <name>`), which creates the Windows service
+`WireGuardTunnel$DishNetOffice` (auto-start, runs as SYSTEM, reconnects by
+itself). This was chosen over the embeddable `tunnel.dll` route for the pilot
+because it needs no custom Go build in CI and uses the signed, unmodified
+official package; `ITunnelController` isolates the choice so the DLL route can
+replace it later without touching the app. The service name prefix
+`WireGuardTunnel$` is imposed by the WireGuard tooling and is not shown in
+the UI; the display name customers see is DishNet's.
+
+The tunnel configuration (which contains the private key) is written to
+`%ProgramData%\DishNet\SecureConnect\DishNetOffice.conf` with an ACL that
+grants access only to SYSTEM and Administrators — the same posture as
+WireGuard's own configuration store. The identity file is additionally
+DPAPI-protected. CI verifies the Authenticode signature of the downloaded
+WireGuard MSI (must be valid and issued to WireGuard LLC) before bundling.
+
+## Remaining (in order)
+
+1. ~~`DishNet.SecureConnect.Windows`~~ done (net8.0-windows): `DpapiProtector`;
    `WireGuardTunnelController` that writes the rendered config to
    `%ProgramData%\DishNet\SecureConnect\DishNetOffice.conf.dpapi` and manages
    the tunnel through the official embeddable DLL service (`tunnel.dll` +
    `wireguard.dll` from wireguard-windows, MIT): `WireGuardTunnelService` for
    install/start/stop, status via the WireGuard named pipe.
-2. **`DishNet.SecureConnect.App`** (WPF, net8.0-windows): red/white UI —
-   activation screen, Connect/Disconnect, state + office server address,
-   "Start with Windows", "Send diagnostics" (zip, redacted). Binds to
-   `SessionManager`; a 60-second timer calls `HeartbeatAsync`.
-3. **Installer** (Inno Setup): bundles the app, `tunnel.dll`, `wireguard.dll`
-   and the WireGuard licence/attribution; requests elevation once (UAC text
-   explains why); upgrade and uninstall remove the tunnel service.
-4. **CI**: `windows-latest` job builds the app and installer artifact.
-5. Phase 4 integration test on two Windows machines through the live hub.
+2. ~~App~~ done   3. ~~Installer~~ done   4. ~~CI~~ done (`.github/workflows/windows.yml`, artifact `DishNetSecureConnect-Setup`)
+5. **Phase 4**: run the installer on a real Windows 10/11 machine against the
+   live hub; verify activation, Connect, RDP to the office gateway, reconnect
+   after a link drop, revocation, reboot, upgrade, uninstall. Fix what breaks.
+6. Non-admin helper service (so standard users can Connect without UAC),
+   gateway-role switch in the UI (LAN declaration), DishNet logo (placeholder
+   icon for now), code signing.
 
 ## Licensing (to document in the installer)
 

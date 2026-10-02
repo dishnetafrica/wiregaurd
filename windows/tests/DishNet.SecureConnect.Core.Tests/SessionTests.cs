@@ -168,9 +168,10 @@ public class SessionManagerTests
         await sm.ActivateAsync("DN-J668-7GMJ-NFW7-XLCP", "Laptop", null, default);
         Assert.True(sm.IsActivated);
         Assert.True(_store.Exists);
-        var sentKey = _api.Requests[0].Body;
-        Assert.Contains(sm.Identity!.PublicKey, sentKey);
-        Assert.DoesNotContain(sm.Identity.PrivateKey, sentKey);
+        using var sent = JsonDocument.Parse(_api.Requests[0].Body);
+        Assert.Equal(sm.Identity!.PublicKey, sent.RootElement.GetProperty("public_key").GetString());
+        Assert.False(sent.RootElement.TryGetProperty("private_key", out _));
+        Assert.DoesNotContain(sm.Identity.PrivateKey, _api.Requests[0].Body);
         Assert.Equal(ConnectionState.Disconnected, await sm.GetStateAsync(default));
 
         await sm.ConnectAsync(default);
