@@ -1,10 +1,14 @@
 :root { --red:#d7262d; --red-dark:#a81b21; --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb; --bg:#f7f7f8; --ok:#15803d; }
 * { box-sizing:border-box; }
 body { margin:0; font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); min-height:100vh; display:flex; flex-direction:column; }
-header.top { background:var(--red); color:#fff; padding:0 20px; display:flex; align-items:center; gap:20px; height:56px; }
+header.top { background:var(--red); color:#fff; padding:10px 16px; display:flex; align-items:center; gap:16px; min-height:56px; flex-wrap:wrap; }
 header.top .brand { font-weight:700; font-size:18px; } header.top .brand span { font-weight:400; opacity:.85; }
 header.top nav a { color:#fff; text-decoration:none; margin-right:16px; opacity:.9; }
 header.top .who { margin-left:auto; font-size:13px; display:flex; gap:10px; align-items:center; }
+@media (max-width:640px) {
+  header.top .brand span, header.top .who span { display:none; }
+  header.top nav a { margin-right:12px; }
+}
 header.top .who button { background:transparent; border:1px solid rgba(255,255,255,.6); color:#fff; padding:4px 10px; border-radius:4px; cursor:pointer; }
 main { max-width:720px; width:100%; margin:24px auto; padding:0 16px; flex:1; }
 footer.bottom { color:var(--muted); font-size:13px; text-align:center; padding:14px; }
