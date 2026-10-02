@@ -135,3 +135,4 @@ Hub prerequisite: the installer must be cached on the hub —
 `sudo bash deploy/fetch-installer.sh` after every client release (it pulls
 the latest `client-v*` GitHub Release into `/var/lib/dishnet/installer/`).
 | 2026-10-02 | Windows 10/11 PC, installer 0.2.0 (direct download, no code in name): install OK incl. WireGuard component; post-install launch failed `CreateProcess failed; code 740` (Inno de-elevates post-install Run items; app requires admin) | ✘ fixed in 0.2.1 (`runascurrentuser`) |
+| 2026-10-02 | Windows PC, client 0.2.1 via trial-request → Approve → gateway install link: app launched, auto-activated (customer "Kishan Bhai", device KISHAN gateway 10.20.0.65), trial countdown shown; Connect failed `Attempted to perform an unauthorized operation` (SetAccessControl on an open FileStream lacks WRITE_DAC) | ✘ fixed in 0.2.2 (ACL via FileInfo, non-fatal) |

@@ -96,16 +96,22 @@ public sealed class WireGuardTunnelController : ITunnelController
     /// <summary>Writes the config readable only by SYSTEM and Administrators (same posture as WireGuard's own configuration store).</summary>
     private void WriteProtectedConfig(string text)
     {
-        var sec = new FileSecurity();
-        sec.SetAccessRuleProtection(true, false);
-        sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, AccessControlType.Allow));
-        sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl, AccessControlType.Allow));
         var tmp = _confPath + ".tmp";
-        using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+        File.WriteAllBytes(tmp, Encoding.ASCII.GetBytes(text));
+        try
         {
-            fs.SetAccessControl(sec);
-            var bytes = Encoding.ASCII.GetBytes(text);
-            fs.Write(bytes, 0, bytes.Length);
+            // SetAccessControl needs a handle opened with WRITE_DAC; FileInfo does that itself,
+            // a plain FileStream opened for writing does not ("Attempted to perform an unauthorized operation").
+            var sec = new FileSecurity();
+            sec.SetAccessRuleProtection(true, false);
+            sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, AccessControlType.Allow));
+            sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl, AccessControlType.Allow));
+            new FileInfo(tmp).SetAccessControl(sec);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // The data directory itself is already restricted to SYSTEM + Administrators, so this is defence in depth, not a blocker.
+            _log.Warn("could not tighten config ACL: " + ex.Message);
         }
         File.Move(tmp, _confPath, overwrite: true);
     }

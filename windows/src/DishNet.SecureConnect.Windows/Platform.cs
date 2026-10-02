@@ -22,14 +22,23 @@ public static class Paths
     /// <summary>Creates the data directory readable/writable by SYSTEM and Administrators only.</summary>
     public static void EnsureDataDir()
     {
-        if (Directory.Exists(DataDir)) return;
-        var sec = new DirectorySecurity();
-        sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-        sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-        var di = Directory.CreateDirectory(DataDir);
-        di.SetAccessControl(sec);
+        var existed = Directory.Exists(DataDir);
+        Directory.CreateDirectory(DataDir);
         Directory.CreateDirectory(LogDir);
+        if (existed) return;
+        try
+        {
+            var sec = new DirectorySecurity();
+            sec.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            sec.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            new DirectoryInfo(DataDir).SetAccessControl(sec);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // Non-fatal: ProgramData subfolders are not world-writable by default either.
+            System.Diagnostics.Debug.WriteLine("EnsureDataDir ACL: " + ex.Message);
+        }
     }
 }
 

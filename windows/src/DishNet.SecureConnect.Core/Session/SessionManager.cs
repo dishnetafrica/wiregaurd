@@ -158,6 +158,11 @@ public sealed class SessionManager
             await _tunnel.StartAsync(text, ct);
             _lastError = null;
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _lastError = "Windows refused a file or service operation (" + ex.Message + "). Please run DishNet Secure Connect as administrator.";
+            _wantUp = false;
+        }
         catch (TunnelConfigException ex)
         {
             _lastError = ex.Message;
