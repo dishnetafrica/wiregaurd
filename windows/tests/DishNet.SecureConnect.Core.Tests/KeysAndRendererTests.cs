@@ -113,3 +113,35 @@ public class RedactorTests
         Assert.Contains("DN-J668-<redacted>", out_);        // hint kept for support
     }
 }
+
+public class InstallLinkTests
+{
+    [Theory]
+    [InlineData(@"C:\Users\bhavin\Downloads\DishNetSecureConnect-Setup-DN-J668-7GMJ-NFW7-XLCP.exe", "DN-J668-7GMJ-NFW7-XLCP")]
+    [InlineData(@"C:\Downloads\DishNetSecureConnect-Setup-DN-J668-7GMJ-NFW7-XLCP (1).exe", "DN-J668-7GMJ-NFW7-XLCP")]
+    [InlineData("dishnetsecureconnect-setup-dn-j668-7gmj-nfw7-xlcp.exe", "DN-J668-7GMJ-NFW7-XLCP")]
+    [InlineData("DishNetSecureConnect-Setup-DNJ6687GMJNFW7XLCP.exe", "DN-J668-7GMJ-NFW7-XLCP")]
+    [InlineData(@"C:\Downloads\DishNetSecureConnect-Setup-0.1.0.exe", null)]
+    [InlineData("", null)]
+    public void ExtractsCodeFromInstallerName(string name, string? want) => Xunit.Assert.Equal(want, DishNet.SecureConnect.Core.Session.InstallLink.ExtractCode(name));
+
+    [Fact]
+    public void ParsesCommandLine()
+    {
+        Xunit.Assert.Equal("DN-J668-7GMJ-NFW7-XLCP", DishNet.SecureConnect.Core.Session.InstallLink.CodeFromArgs(new[] { "/setup", @"C:\x\DishNetSecureConnect-Setup-DN-J668-7GMJ-NFW7-XLCP.exe" }));
+        Xunit.Assert.Equal("DN-J668-7GMJ-NFW7-XLCP", DishNet.SecureConnect.Core.Session.InstallLink.CodeFromArgs(new[] { "/code=dn-j668-7gmj-nfw7-xlcp" }));
+        Xunit.Assert.Null(DishNet.SecureConnect.Core.Session.InstallLink.CodeFromArgs(new[] { "/minimized" }));
+    }
+
+    [Fact]
+    public void PlanTextCountsDown()
+    {
+        var now = new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
+        var trial = new DishNet.SecureConnect.Core.Api.DeviceConfig { Plan = "trial", SubscriptionExpiresAt = "2026-10-25T11:59:59Z" };
+        Xunit.Assert.Equal("Free trial — 23 days left", DishNet.SecureConnect.Core.Session.PlanText.Describe(trial, now));
+        Xunit.Assert.Equal("Free trial has ended — contact DishNet to continue", DishNet.SecureConnect.Core.Session.PlanText.Describe(trial, now.AddDays(40)));
+        var paid = new DishNet.SecureConnect.Core.Api.DeviceConfig { Plan = "paid", SubscriptionExpiresAt = "2027-10-01T00:00:00Z" };
+        Xunit.Assert.StartsWith("Subscription active until", DishNet.SecureConnect.Core.Session.PlanText.Describe(paid, now));
+        Xunit.Assert.Equal("", DishNet.SecureConnect.Core.Session.PlanText.Describe(new DishNet.SecureConnect.Core.Api.DeviceConfig { Plan = "unlimited" }, now));
+    }
+}

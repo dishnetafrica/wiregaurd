@@ -93,6 +93,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool HasInfo => Info.Length > 0;
     private bool _isGateway;
     public bool IsGateway { get => _isGateway; private set => Set(ref _isGateway, value); }
+    private string _planText = "";
+    public string PlanText { get => _planText; private set => Set(ref _planText, value); }
 
     private bool _startWithWindows;
     public bool StartWithWindows
@@ -126,6 +128,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             AssignedDevice = id is null ? "" : $"{id.DeviceName} (#{id.DeviceId})";
             IsGateway = id?.Role == "gateway";
             VpnAddress = cfg?.Address ?? "";
+            PlanText = Core.Session.PlanText.Describe(cfg, DateTimeOffset.UtcNow);
             OfficeTargets = cfg is null ? "" : IsGateway
                 ? "This computer is the office server. Staff devices connect to it through DishNet."
                 : cfg.Access.Count == 0 ? "No office server registered yet — ask DishNet." : string.Join("\n", cfg.Access.Select(a => $"{a.Label}: {a.Target} ({a.Proto} {string.Join(",", a.Ports)})"));
@@ -138,6 +141,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             _log.Error("refresh: " + ex);
             Error = ex.Message;
+        }
+    }
+
+    /// <summary>Install-link flow: activate with the embedded code and connect, no typing.</summary>
+    public async Task AutoSetupAsync(string code)
+    {
+        Code = code;
+        Info = "Setting up your DishNet connection…";
+        await ActivateAsync();
+        if (_session.IsActivated)
+        {
+            StartWithWindows = true;
+            await ConnectAsync();
         }
     }
 

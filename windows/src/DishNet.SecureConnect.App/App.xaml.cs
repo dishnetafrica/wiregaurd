@@ -50,7 +50,10 @@ public partial class App : Application
         MainWindow = window;
         if (e.Args.Contains("/minimized")) window.WindowState = WindowState.Minimized;
         window.Show();
-        _ = vm.RefreshAsync();
+        // Install link: the installer passes its own file name, which carries the activation code.
+        var linkCode = InstallLink.CodeFromArgs(e.Args);
+        if (linkCode is not null && !session.IsActivated) _ = vm.AutoSetupAsync(linkCode);
+        else _ = vm.RefreshAsync();
 
         // Heartbeat + status refresh. The tunnel service keeps running on its own; this only updates the UI and picks up policy changes/revocation.
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };

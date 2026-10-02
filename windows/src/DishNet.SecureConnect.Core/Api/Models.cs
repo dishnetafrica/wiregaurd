@@ -17,6 +17,7 @@ public sealed record DeviceConfig
     [JsonPropertyName("dns")] public IReadOnlyList<string> Dns { get; init; } = Array.Empty<string>();
     [JsonPropertyName("access")] public IReadOnlyList<AccessTarget> Access { get; init; } = Array.Empty<AccessTarget>();
     [JsonPropertyName("config_version")] public int ConfigVersion { get; init; }
+    [JsonPropertyName("plan")] public string Plan { get; init; } = "";
     [JsonPropertyName("subscription_expires_at")] public string? SubscriptionExpiresAt { get; init; }
 
     public bool IsGateway => string.Equals(Role, "gateway", StringComparison.OrdinalIgnoreCase);

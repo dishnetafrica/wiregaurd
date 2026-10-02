@@ -115,3 +115,22 @@ Microsoft Remote Desktop from the App Store.
 | 2026-10-02 | macOS client (Intel MacBook, wireguard-tools + wg-quick): activation via API → `10.20.0.17/32`, `AllowedIPs 10.20.0.1/32`; tunnel up; `ping 10.20.0.1` 3/3 replies (~300 ms); `ping 10.20.0.2` denied | ✔ first end-to-end tunnel |
 | — | Office gateway (Windows) + RDP from client | pending |
 | — | Revocation observed on a live tunnel | pending |
+
+## 6. Install link flow (no code typing) — from server v0.2.0 / client v0.2.0
+
+1. Dashboard → customer → Generate code (role Client, max uses = number of
+   PCs). The one-time reveal shows the code **and** an install link
+   `https://vpn.dishnetuganda.com/get/DN-….` Send the link to the customer.
+2. Customer opens the link → browser downloads
+   `DishNetSecureConnect-Setup-DN-….exe` → runs it (SmartScreen *More info →
+   Run anyway*, UAC *Yes*) → the app opens, activates with the code from the
+   file name and connects. "Start with Windows" is switched on.
+3. The status card shows *Free trial — N days left*. New customers are 30-day
+   trials by default; on the customer page: **Extend 30 days**, **Mark paid**
+   (+30 days / +1 year), or **Suspend**. When the date passes all devices are
+   cut off within a minute and the app shows *Free trial has ended*;
+   extending reconnects them within a minute.
+
+Hub prerequisite: the installer must be cached on the hub —
+`sudo bash deploy/fetch-installer.sh` after every client release (it pulls
+the latest `client-v*` GitHub Release into `/var/lib/dishnet/installer/`).

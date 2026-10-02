@@ -44,6 +44,7 @@
                             <TextBlock Style="{StaticResource MutedText}" FontSize="12">VPN status</TextBlock>
                             <TextBlock Text="{Binding StateTitle}" FontSize="26" FontWeight="SemiBold" Margin="0,2,0,2"/>
                             <TextBlock Text="{Binding StateDetail}" Style="{StaticResource MutedText}"/>
+                            <TextBlock Text="{Binding PlanText}" FontSize="13" Foreground="{StaticResource Warn}" Margin="0,8,0,0"/>
                             <TextBlock Text="{Binding Handshake}" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
                             <TextBlock Text="{Binding Traffic}" Style="{StaticResource MutedText}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
