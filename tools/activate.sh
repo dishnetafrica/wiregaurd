@@ -13,7 +13,9 @@ CODE=${1:?activation code}; NAME=${2:-$(hostname)}
 API=${API:-https://vpn.dishnetuganda.com}
 if ! command -v wg >/dev/null; then
   if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null; then
-    echo "Installing wireguard-tools with Homebrew (needed once for key generation)..."; brew install -q wireguard-tools
+    echo "Installing wireguard-tools with Homebrew (needed once for key generation)..."
+    HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install -q wireguard-tools || true
+    command -v wg >/dev/null || { echo "Homebrew could not install wireguard-tools; run: brew install wireguard-tools"; exit 1; }
   else
     echo "wireguard-tools (wg) is not installed. macOS: brew install wireguard-tools   Ubuntu: apt install wireguard-tools"; exit 1
   fi
