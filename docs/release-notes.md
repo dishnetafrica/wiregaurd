@@ -3,7 +3,8 @@
 Each release lists what changed, how it was verified, the exact hub commands,
 and how to roll back. Server releases are tags `vX.Y.Z` (Linux binary
 `dishnet-vpnd-linux-amd64` + `.sha256`); client releases are tags
-`client-vX.Y.Z` (`DishNetSecureConnect-Setup.exe` + `.sha256`). Both are
+`client-vX.Y.Z` (`DishNetSecureConnect-Setup-X.Y.Z.exe`; the hub computes and
+publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
@@ -41,7 +42,12 @@ builds anything itself.
 **Verified before release** (see the completion report for the run ids):
 `go vet` + `go test -race ./...` (7 packages), `dotnet test` (61 tests),
 Windows solution build, release workflows green, binary and installer
-checksums match the `.sha256` assets.
+binary checksum matches its `.sha256` asset.
+
+| Asset | Size | SHA-256 |
+|---|---|---|
+| `v0.5.1/dishnet-vpnd-linux-amd64` (reports `dishnet-vpnd a6e943d`) | 13,807,800 | see `.sha256` asset (verified OK) |
+| `client-v0.3.1/DishNetSecureConnect-Setup-0.3.1.exe` | 55,803,150 | `376bdc9cf178d665f9fedb137db794cffdd50b67d0d9db348448b19d95a51aff` |
 
 ### Deploy (hub, as root)
 
@@ -49,7 +55,7 @@ checksums match the `.sha256` assets.
 cd /root/wiregaurd && git pull
 sudo bash deploy/update-server.sh v0.5.1          # expect: downloaded v0.5.1: dishnet-vpnd <commit> … healthy
 sudo bash deploy/fetch-installer.sh client-v0.3.1 # expect: sha256 OK, cached at /var/lib/dishnet/installer/
-curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.3.1" and the sha256 from the release
+curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.3.1" and sha256 376bdc9c…a51aff
 curl -sI https://vpn.dishnetuganda.com/guide | head -1       # expect HTTP/2 200
 ```
 
