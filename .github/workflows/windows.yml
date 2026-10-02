@@ -1,0 +1,18 @@
+name: windows-client
+
+on:
+  push:
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+  pull_request:
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+
+jobs:
+  core:
+    # Cross-platform core (API client, config rendering, key store, session logic) + tests.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet test windows/DishNetSecureConnect.sln --nologo -v q

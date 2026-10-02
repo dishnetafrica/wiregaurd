@@ -7,3 +7,9 @@ server/dishnet-vpnd
 *.env
 !deploy/**/*.example
 *.tgz
+
+# .NET
+windows/**/bin/
+windows/**/obj/
+windows/**/TestResults/
+*.user

@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{32E3C3B0-FDBE-4687-AD48-441F8605A1DA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DishNet.SecureConnect.Core", "src\DishNet.SecureConnect.Core\DishNet.SecureConnect.Core.csproj", "{8599E07F-25D1-4FDD-BA7C-C19110A9F716}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2DC7388A-B6CB-401B-9C5D-11B035DD982E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DishNet.SecureConnect.Core.Tests", "tests\DishNet.SecureConnect.Core.Tests\DishNet.SecureConnect.Core.Tests.csproj", "{6DC5784E-1735-4DAE-A7AC-B135C09CF122}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8599E07F-25D1-4FDD-BA7C-C19110A9F716}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8599E07F-25D1-4FDD-BA7C-C19110A9F716}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8599E07F-25D1-4FDD-BA7C-C19110A9F716}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8599E07F-25D1-4FDD-BA7C-C19110A9F716}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DC5784E-1735-4DAE-A7AC-B135C09CF122}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DC5784E-1735-4DAE-A7AC-B135C09CF122}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DC5784E-1735-4DAE-A7AC-B135C09CF122}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DC5784E-1735-4DAE-A7AC-B135C09CF122}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8599E07F-25D1-4FDD-BA7C-C19110A9F716} = {32E3C3B0-FDBE-4687-AD48-441F8605A1DA}
+		{6DC5784E-1735-4DAE-A7AC-B135C09CF122} = {2DC7388A-B6CB-401B-9C5D-11B035DD982E}
+	EndGlobalSection
+EndGlobal
