@@ -68,7 +68,9 @@ Name: "{autodesktop}\DishNet Secure Connect"; Filename: "{app}\DishNetSecureConn
 ; Official WireGuard package: silent, no UI launched. DO_NOT_LAUNCH keeps its own window from opening.
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\wireguard.msi"" /qn /norestart DO_NOT_LAUNCH=1"; StatusMsg: "Installing the secure tunnel component (WireGuard)..."; Check: not WireGuardInstalled; Flags: runhidden waituntilterminated
 ; The installer's own file name carries the activation code when downloaded from an install link; the app reads it and connects by itself.
-Filename: "{app}\DishNetSecureConnect.exe"; Parameters: "/setup ""{srcexe}"""; Description: "Connect to your office now"; Flags: nowait postinstall skipifsilent
+; runascurrentuser: keep the elevated setup token, otherwise Inno launches post-install items de-elevated and the app's
+; requireAdministrator manifest makes CreateProcess fail with error 740.
+Filename: "{app}\DishNetSecureConnect.exe"; Parameters: "/setup ""{srcexe}"""; Description: "Connect to your office now"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallRun]
 Filename: "{pf}\WireGuard\wireguard.exe"; Parameters: "/uninstalltunnelservice DishNetOffice"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveTunnel"
