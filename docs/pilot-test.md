@@ -114,6 +114,8 @@ Microsoft Remote Desktop from the App Store.
 | 2026-10-02 | Hub deployed (v0.1.0 → v0.1.1), TLS issued, dashboard login, customer `DishNet Test` created, codes generated | ✔ |
 | 2026-10-02 | macOS client (Intel MacBook, wireguard-tools + wg-quick): activation via API → `10.20.0.17/32`, `AllowedIPs 10.20.0.1/32`; tunnel up; `ping 10.20.0.1` 3/3 replies (~300 ms); `ping 10.20.0.2` denied | ✔ first end-to-end tunnel |
 | 2026-10-02 | Hub updated to server v0.5.1 (`dishnet-vpnd a6e943d`), installer cache client-v0.3.1; `/api/v1/client/latest` = 0.3.1 / sha256 `376bdc9c…a51aff` / 55,803,150 bytes; `/guide` HTTP 200; wg0 untouched | ✔ verified from hub output |
+| 2026-10-02 | Hub updated to server v0.6.0 (`dishnet-vpnd 998ce23`), installer cache client-v0.4.0; `/api/v1/client/latest` = 0.4.0 / sha256 `c675ac1a…58bb4` / 55,819,608 bytes | ✔ verified from hub output |
+| 2026-10-02 | Office PC KISHAN on 0.3.1 (screenshot): in-place update kept activation + paid plan (to 31 Oct 2028); owner clicked Allow (RDP enabled, firewall 3389 only); device #6 at 10.20.0.69. **Tunnel stuck at "Waiting for handshake"** — hub-side peer / UDP check pending | ✖ open |
 | — | Office PC KISHAN: update 0.2.x → 0.3.1 via Update now; edition reported to dashboard; Allow Remote Desktop by owner | pending |
 | — | Office gateway (Windows) + RDP from client | pending |
 | — | Revocation observed on a live tunnel | pending |
