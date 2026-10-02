@@ -7,14 +7,28 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dishnetafrica/wiregaurd/server/internal/provision"
 	"github.com/dishnetafrica/wiregaurd/server/internal/store"
 )
 
-type recNotifier struct{ events []map[string]any }
+type recNotifier struct{ ch chan map[string]any }
 
-func (r *recNotifier) Notify(e map[string]any) { r.events = append(r.events, e) }
+func newRecNotifier() *recNotifier { return &recNotifier{ch: make(chan map[string]any, 8)} }
+
+func (r *recNotifier) Notify(e map[string]any) { r.ch <- e }
+
+func (r *recNotifier) wait(t *testing.T) map[string]any {
+	t.Helper()
+	select {
+	case e := <-r.ch:
+		return e
+	case <-time.After(5 * time.Second):
+		t.Fatal("notifier was not called")
+		return nil
+	}
+}
 
 func postForm(t *testing.T, url_ string, v url.Values) (*http.Response, string) {
 	t.Helper()
@@ -29,7 +43,7 @@ func postForm(t *testing.T, url_ string, v url.Values) (*http.Response, string) 
 
 func TestTrialRequestLifecycle(t *testing.T) {
 	_, svc, _ := setup(t)
-	n := &recNotifier{}
+	n := newRecNotifier()
 	svc.SetNotifier(n)
 	mux := http.NewServeMux()
 	NewTrialPages(svc, "WhatsApp 0705 993 348").Register(mux)
@@ -73,8 +87,8 @@ func TestTrialRequestLifecycle(t *testing.T) {
 	if len(pending) != 1 || pending[0].Status != store.TrialPending || pending[0].PCs != 3 || pending[0].Business != "Kampala Traders" {
 		t.Fatalf("stored requests: %+v", pending)
 	}
-	if len(n.events) != 1 || n.events[0]["business"] != "Kampala Traders" {
-		t.Fatalf("notifier not called: %+v", n.events)
+	if ev := n.wait(t); ev["business"] != "Kampala Traders" {
+		t.Fatalf("notifier event: %+v", ev)
 	}
 	var customersBefore int
 	_ = svc.DB().View(ctx, func(tx *store.Tx) error {
