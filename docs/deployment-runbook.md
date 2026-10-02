@@ -156,7 +156,7 @@ backup set: /var/backups/dishnet/<stamp> (contains private keys — keep it priv
 
 ```bash
 cd /root/wiregaurd
-export DISHNET_BIN=/root/dishnet-vpnd DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ADMIN_ALLOW=<ADMIN_IP_1>,<ADMIN_IP_2>
+export DISHNET_BIN=/root/dishnet-vpnd DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ALLOW_ANY_ADMIN_IP=yes   # test phase: dashboard open to any IP (password + rate limit); set DISHNET_ADMIN_ALLOW=<ip> later
 bash deploy/install.sh
 ```
 
@@ -233,7 +233,7 @@ If the live output differs from this (e.g. an unexpected `ufw` line, extra
 
 ```bash
 cd /root/wiregaurd
-export DISHNET_BIN=/root/dishnet-vpnd DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ADMIN_ALLOW=<ADMIN_IP_1>,<ADMIN_IP_2>
+export DISHNET_BIN=/root/dishnet-vpnd DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ALLOW_ANY_ADMIN_IP=yes   # test phase: dashboard open to any IP (password + rate limit); set DISHNET_ADMIN_ALLOW=<ip> later
 bash deploy/install.sh --apply 2>&1 | tee /root/install-$(date +%F).txt
 ```
 

@@ -40,3 +40,12 @@ here first if they need to change.
 * DigitalOcean Cloud Firewall rules and the administrator IP allowlist.
 * Confirmation that `/root/wireguard-backup-<date>.tgz` exists (mode 600).
 * Confirmation of the DNS name and that DishNet controls its DNS.
+
+## Deployment decisions (2026-10-02, DishNet)
+
+| # | Decision |
+|---|---|
+| D1 | Admin dashboard allowlist: **any IP during the test phase** (`DISHNET_ALLOW_ANY_ADMIN_IP=yes`); an allowlist is set in `/etc/dishnet/dishnet-vpnd.env` before the first paying customer. |
+| D2 | No separate staging Droplet: controlled pilot on the live hub with a test customer and no real traffic first (runbook §5). |
+| D3 | SSH hardening per runbook §2.1 (key-only, root password login off, port 22 restricted in the DO firewall) — DishNet performs it with a session kept open; the deploy scripts never touch sshd. |
+| D4 | Claude has no SSH access to the hub; DishNet executes the runbook and pastes outputs. |

@@ -39,7 +39,13 @@ say "# DishNet hub install — $(hostname) — $STAMP — mode: $([[ $APPLY -eq 
 # ---------- 0. preconditions ----------
 [[ -f /etc/wireguard/$WG_IF.conf ]] || { say "ERROR: /etc/wireguard/$WG_IF.conf not found; refusing (this script does not create the hub)"; exit 1; }
 if [[ $APPLY -eq 1 && -z "$DOMAIN" ]]; then say "ERROR: DISHNET_DOMAIN is required for --apply (TLS)"; exit 1; fi
-if [[ $APPLY -eq 1 && -z "$ADMIN_ALLOW" ]]; then say "WARNING: DISHNET_ADMIN_ALLOW empty — the dashboard will accept logins from any IP. Continue? (y/N)"; read -r a; [[ "$a" == "y" ]] || exit 1; fi
+if [[ -z "$ADMIN_ALLOW" ]]; then
+  if [[ "${DISHNET_ALLOW_ANY_ADMIN_IP:-}" == "yes" ]]; then
+    say "WARNING: DISHNET_ADMIN_ALLOW empty — the dashboard accepts logins from ANY address (password + rate limit only). Set an allowlist in /etc/dishnet/dishnet-vpnd.env before onboarding paying customers."
+  else
+    say "ERROR: DISHNET_ADMIN_ALLOW is empty. Either set it (comma-separated IPs/CIDRs) or export DISHNET_ALLOW_ANY_ADMIN_IP=yes to accept the risk during testing."; exit 1
+  fi
+fi
 
 # ---------- 1. backup ----------
 say "## 1. Backup"
