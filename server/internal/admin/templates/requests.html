@@ -1,0 +1,34 @@
+{{template "header" .}}
+{{$csrf := .CSRF}}
+<h1>Trial requests</h1>
+<p class="muted" style="font-size:13px">Submitted from the public page <span class="mono">/trial</span>. Approving creates a 30-day trial customer with one office-gateway code and one staff-computer code; nothing is created until you approve.</p>
+
+{{if .Approved}}
+<div class="code-reveal">
+  <div class="muted">Approved — customer <a href="/admin/customers/{{.Approved.CustomerID}}">#{{.Approved.CustomerID}}</a> created. These links are shown once; send them to the customer now.</div>
+  <div style="margin-top:10px"><strong>Office server / gateway</strong> (install on the PC that runs Tally/ERP):</div>
+  <div class="mono" style="font-size:14px;user-select:all;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0">{{.Approved.GatewayLink}}</div>
+  <div style="margin-top:10px"><strong>Staff computers</strong> (one link for all of them):</div>
+  <div class="mono" style="font-size:14px;user-select:all;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:4px 0">{{.Approved.ClientLink}}</div>
+  <div class="muted" style="margin-top:8px">Codes, if a link cannot be used: gateway <span class="mono">{{.Approved.Gateway}}</span> · staff <span class="mono">{{.Approved.Client}}</span></div>
+</div>
+{{end}}
+
+<div class="card">
+<table><tr><th>When</th><th>Business</th><th>Contact</th><th>PCs</th><th>Office</th><th>Notes</th><th>Status</th><th></th></tr>
+{{range .Requests}}<tr>
+  <td>{{datetime .CreatedAt}}</td>
+  <td><strong>{{.Business}}</strong></td>
+  <td>{{.ContactName}}<div class="muted">{{.Phone}}{{if .Email}} · {{.Email}}{{end}}</div></td>
+  <td>{{.PCs}}</td>
+  <td>{{.OfficeType}}</td>
+  <td class="muted">{{.Notes}}</td>
+  <td>{{if eq .Status "pending"}}<span class="badge warn">pending</span>{{else if eq .Status "approved"}}<span class="badge ok">approved</span>{{if .CustomerID}} <a href="/admin/customers/{{.CustomerID}}">customer</a>{{end}}{{else}}<span class="badge muted">rejected</span>{{if .DecisionNote}}<div class="muted">{{.DecisionNote}}</div>{{end}}{{end}}</td>
+  <td class="right">{{if and $.IsOperator (eq .Status "pending")}}
+    <form method="post" action="/admin/requests/{{.ID}}/approve" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><button class="small">Approve</button></form>
+    <form method="post" action="/admin/requests/{{.ID}}/reject" class="inline" onsubmit="return confirm('Reject this request?')"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="note" value="declined"><button class="small secondary">Reject</button></form>
+  {{end}}</td>
+</tr>{{else}}<tr><td colspan="8" class="muted">No requests yet. Share <span class="mono">{{"https://vpn.dishnetuganda.com/trial"}}</span> with prospects.</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

@@ -117,6 +117,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/devices/{id}/revoke", h.gate(h.requireRole(store.AdminOperator, h.revokeDevice)))
 	mux.HandleFunc("POST /admin/policies/{id}/toggle", h.gate(h.requireRole(store.AdminOperator, h.togglePolicy)))
 	mux.HandleFunc("POST /admin/policies/{id}/delete", h.gate(h.requireRole(store.AdminOperator, h.deletePolicy)))
+	mux.HandleFunc("GET /admin/requests", h.gate(h.requireRole(store.AdminViewer, h.requests)))
+	mux.HandleFunc("POST /admin/requests/{id}/approve", h.gate(h.requireRole(store.AdminOperator, h.approveRequest)))
+	mux.HandleFunc("POST /admin/requests/{id}/reject", h.gate(h.requireRole(store.AdminOperator, h.rejectRequest)))
 	mux.HandleFunc("GET /admin/jobs", h.gate(h.requireRole(store.AdminViewer, h.jobs)))
 	mux.HandleFunc("POST /admin/jobs/reconcile", h.gate(h.requireRole(store.AdminOperator, h.reconcile)))
 	mux.HandleFunc("GET /admin/audit", h.gate(h.requireRole(store.AdminViewer, h.audit)))
@@ -327,6 +330,8 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		customers, _ := tx.ListCustomers()
 		devices, _ := tx.ListAllDevices()
 		failed, _ := tx.CountJobs(store.JobFailed)
+		pending, _ := tx.CountTrialRequests(store.TrialPending)
+		data["PendingRequests"] = pending
 		pools, _ := tx.ListPools()
 		online, active := 0, 0
 		for _, d := range devices {
@@ -658,6 +663,40 @@ func (h *Handler) deletePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectFlash(w, r, back, "Policy deleted")
+}
+
+func (h *Handler) requests(w http.ResponseWriter, r *http.Request) {
+	data := map[string]any{}
+	_ = h.db.View(r.Context(), func(tx *store.Tx) error {
+		data["Requests"], _ = tx.ListTrialRequests(200)
+		return nil
+	})
+	if cid := r.URL.Query().Get("approved"); cid != "" {
+		data["Approved"] = map[string]string{"CustomerID": cid, "Gateway": r.URL.Query().Get("gw"), "Client": r.URL.Query().Get("cl"), "GatewayLink": h.publicURL + "/get/" + r.URL.Query().Get("gw"), "ClientLink": h.publicURL + "/get/" + r.URL.Query().Get("cl")}
+	}
+	h.render(w, r, "requests.html", data, http.StatusOK)
+}
+
+func (h *Handler) approveRequest(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	res, err := h.svc.ApproveTrialRequest(r.Context(), id, s.admin.Email)
+	if err != nil {
+		redirectErr(w, r, "/admin/requests", err)
+		return
+	}
+	// Codes are shown once, via the redirect, exactly like manual code creation.
+	http.Redirect(w, r, fmt.Sprintf("/admin/requests?approved=%d&gw=%s&cl=%s", res.Customer.ID, template.URLQueryEscaper(res.GatewayCode), template.URLQueryEscaper(res.ClientCode)), http.StatusSeeOther)
+}
+
+func (h *Handler) rejectRequest(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	if err := h.svc.RejectTrialRequest(r.Context(), id, r.FormValue("note"), s.admin.Email); err != nil {
+		redirectErr(w, r, "/admin/requests", err)
+		return
+	}
+	redirectFlash(w, r, "/admin/requests", "Request rejected")
 }
 
 func (h *Handler) jobs(w http.ResponseWriter, r *http.Request) {

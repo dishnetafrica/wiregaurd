@@ -54,6 +54,8 @@ type Config struct {
 	InsecureCooks bool          // DISHNET_INSECURE_COOKIES only for dry-run over plain http
 	PublicURL     string        // DISHNET_PUBLIC_URL     default https://vpn.dishnetuganda.com (install links)
 	InstallerPath string        // DISHNET_INSTALLER_PATH default /var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe
+	NotifyWebhook string        // DISHNET_NOTIFY_WEBHOOK optional URL that receives JSON for new trial requests
+	SupportText   string        // DISHNET_SUPPORT_CONTACT shown on public pages, e.g. "WhatsApp 0705 993 348"
 }
 
 func loadConfig() Config {
@@ -73,6 +75,7 @@ func loadConfig() Config {
 		TrustProxy: get("DISHNET_TRUST_PROXY", "true") == "true", DryRun: os.Getenv("DISHNET_DRY_RUN") == "true",
 		Reconcile: rec, InsecureCooks: os.Getenv("DISHNET_INSECURE_COOKIES") == "true",
 		PublicURL: get("DISHNET_PUBLIC_URL", "https://vpn.dishnetuganda.com"), InstallerPath: get("DISHNET_INSTALLER_PATH", "/var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe"),
+		NotifyWebhook: os.Getenv("DISHNET_NOTIFY_WEBHOOK"), SupportText: os.Getenv("DISHNET_SUPPORT_CONTACT"),
 	}
 }
 
@@ -184,6 +187,10 @@ func serve(cfg Config, log *slog.Logger) error {
 	mux := http.NewServeMux()
 	api.New(svc, log, cfg.TrustProxy).Register(mux)
 	api.NewDownloads(svc, cfg.InstallerPath, log).Register(mux)
+	api.NewTrialPages(svc, cfg.SupportText).Register(mux)
+	if cfg.NotifyWebhook != "" {
+		svc.SetNotifier(&provision.WebhookNotifier{URL: cfg.NotifyWebhook})
+	}
 	adminH.Register(mux)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

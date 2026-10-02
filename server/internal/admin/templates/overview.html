@@ -5,6 +5,7 @@
   <div class="tile"><div class="n">{{.DeviceCount}}</div><div class="l">Active devices</div></div>
   <div class="tile"><div class="n">{{.Online}}</div><div class="l">Online (handshake &lt; 3 min)</div></div>
   <div class="tile"><div class="n">{{.FailedJobs}}</div><div class="l">Failed provisioning jobs{{if .FailedJobs}} — <a href="/admin/jobs">review</a>{{end}}</div></div>
+  <div class="tile"><div class="n">{{.PendingRequests}}</div><div class="l">Trial requests waiting{{if .PendingRequests}} — <a href="/admin/requests">review</a>{{end}}</div></div>
 </div>
 <h2>Address pools</h2>
 <div class="card">

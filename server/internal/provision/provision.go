@@ -82,6 +82,7 @@ type Service struct {
 	now      func() time.Time
 	hubKey   string
 	hubKeyMu sync.Mutex
+	notifier Notifier
 }
 
 func New(cfg Config, db *store.DB, backend wg.Backend, fw firewall.Applier, router Router, log *slog.Logger) *Service {

@@ -692,3 +692,80 @@ func (t *Tx) ListAudit(limit int) ([]AuditEntry, error) {
 	}
 	return out, rows.Err()
 }
+
+// ---------- trial requests ----------
+
+const trialCols = `id, business, contact_name, phone, email, pcs, office_type, notes, ip, status, customer_id, decided_by, decision_note, created_at, decided_at`
+
+func scanTrial(sc interface{ Scan(...any) error }) (TrialRequest, error) {
+	var r TrialRequest
+	var cust sql.NullInt64
+	var created string
+	var decided sql.NullString
+	if err := sc.Scan(&r.ID, &r.Business, &r.ContactName, &r.Phone, &r.Email, &r.PCs, &r.OfficeType, &r.Notes, &r.IP, (*string)(&r.Status), &cust, &r.DecidedBy, &r.DecisionNote, &created, &decided); err != nil {
+		return r, err
+	}
+	r.CustomerID = cust.Int64
+	r.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	r.DecidedAt = ParseTime(decided)
+	return r, nil
+}
+
+func (t *Tx) InsertTrialRequest(r TrialRequest) (TrialRequest, error) {
+	res, err := t.tx.ExecContext(t.ctx, `INSERT INTO trial_requests(business, contact_name, phone, email, pcs, office_type, notes, ip, status, created_at) VALUES (?,?,?,?,?,?,?,?,'pending',?)`,
+		r.Business, r.ContactName, r.Phone, r.Email, r.PCs, r.OfficeType, r.Notes, r.IP, Now())
+	if err != nil {
+		return r, err
+	}
+	r.ID, _ = res.LastInsertId()
+	r.Status = TrialPending
+	return r, nil
+}
+
+func (t *Tx) GetTrialRequest(id int64) (TrialRequest, error) {
+	r, err := scanTrial(t.tx.QueryRowContext(t.ctx, `SELECT `+trialCols+` FROM trial_requests WHERE id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return r, ErrNotFound
+	}
+	return r, err
+}
+
+func (t *Tx) ListTrialRequests(limit int) ([]TrialRequest, error) {
+	rows, err := t.tx.QueryContext(t.ctx, `SELECT `+trialCols+` FROM trial_requests ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TrialRequest
+	for rows.Next() {
+		r, err := scanTrial(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (t *Tx) CountTrialRequests(status TrialStatus) (int, error) {
+	var n int
+	err := t.tx.QueryRowContext(t.ctx, `SELECT COUNT(*) FROM trial_requests WHERE status=?`, string(status)).Scan(&n)
+	return n, err
+}
+
+// DecideTrialRequest moves a pending request to approved/rejected exactly once.
+func (t *Tx) DecideTrialRequest(id int64, status TrialStatus, customerID int64, by, note string) error {
+	var cust any
+	if customerID != 0 {
+		cust = customerID
+	}
+	res, err := t.tx.ExecContext(t.ctx, `UPDATE trial_requests SET status=?, customer_id=?, decided_by=?, decision_note=?, decided_at=? WHERE id=? AND status='pending'`,
+		string(status), cust, by, note, Now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

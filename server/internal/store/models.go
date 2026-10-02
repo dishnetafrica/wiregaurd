@@ -221,3 +221,29 @@ type AuditEntry struct {
 	Detail    string
 	IP        string
 }
+
+type TrialStatus string
+
+const (
+	TrialPending  TrialStatus = "pending"
+	TrialApproved TrialStatus = "approved"
+	TrialRejected TrialStatus = "rejected"
+)
+
+type TrialRequest struct {
+	ID           int64
+	Business     string
+	ContactName  string
+	Phone        string
+	Email        string
+	PCs          int
+	OfficeType   string
+	Notes        string
+	IP           string
+	Status       TrialStatus
+	CustomerID   int64
+	DecidedBy    string
+	DecisionNote string
+	CreatedAt    time.Time
+	DecidedAt    time.Time
+}
