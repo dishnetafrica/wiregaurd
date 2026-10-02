@@ -105,8 +105,8 @@ func TestActivationProvisionsPeerAndReturnsConfig(t *testing.T) {
 	if len(gw.Config.AllowedIPs) != 1 || gw.Config.AllowedIPs[0] != "10.20.0.16/28" {
 		t.Fatalf("gateway allowed ips %v", gw.Config.AllowedIPs)
 	}
-	// Client only sees the gateway: split tunnel, nothing else.
-	if len(cl.Config.AllowedIPs) != 1 || cl.Config.AllowedIPs[0] != "10.20.0.17/32" {
+	// Client only sees the hub (ping only) and the gateway: split tunnel, nothing else.
+	if len(cl.Config.AllowedIPs) != 2 || cl.Config.AllowedIPs[0] != "10.20.0.1/32" || cl.Config.AllowedIPs[1] != "10.20.0.17/32" {
 		t.Fatalf("client allowed ips %v", cl.Config.AllowedIPs)
 	}
 	if len(cl.Config.Access) != 1 || cl.Config.Access[0].Target != "10.20.0.17" || len(cl.Config.Access[0].Ports) != 2 {
@@ -266,12 +266,12 @@ func TestCustomersCannotReachEachOther(t *testing.T) {
 	}
 	// Client configs never list another customer's addresses.
 	for _, ip := range bCL.Config.AllowedIPs {
-		if strings.HasPrefix(ip, "10.20.0.1") {
+		if ip != "10.20.0.1/32" && strings.HasPrefix(ip, "10.20.0.1") { // A's block is .17–.30; the hub .1 is allowed
 			t.Fatalf("B client config routes A's addresses: %v", bCL.Config.AllowedIPs)
 		}
 	}
-	if aCL.Config.AllowedIPs[0] != aGW.Config.Address {
-		t.Fatalf("A client should route only A gateway, got %v", aCL.Config.AllowedIPs)
+	if len(aCL.Config.AllowedIPs) != 2 || aCL.Config.AllowedIPs[1] != aGW.Config.Address {
+		t.Fatalf("A client should route only the hub and A gateway, got %v", aCL.Config.AllowedIPs)
 	}
 	// An admin cannot create a policy pointing at another tenant's gateway.
 	_, err := h.svc.CreatePolicy(h.ctx, NewPolicy{CustomerID: a.ID, ToDeviceID: bGW.Device.ID, Proto: store.ProtoTCP, Ports: []int{3389}})
@@ -337,7 +337,7 @@ func TestModeBLANRoutingAndOverlap(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg, _ := h.svc.ConfigFor(h.ctx, aCL.Device.ID)
-	if len(cfg.AllowedIPs) != 2 || cfg.AllowedIPs[1] != lan.String() {
+	if len(cfg.AllowedIPs) != 3 || cfg.AllowedIPs[2] != lan.String() {
 		t.Fatalf("client allowed ips %v", cfg.AllowedIPs)
 	}
 	if !strings.Contains(h.fw.Last(), fmt.Sprintf("ip saddr %s ip daddr %s tcp dport { 3389 } accept", aCL.Device.VPNIP, lan)) {

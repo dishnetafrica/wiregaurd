@@ -80,3 +80,29 @@ device shows *revoked*. A second laptop can only join with a new code.
   gateway first.
 * The dashboard's *Online* column updates every 60 s from the hub's
   handshake data.
+
+## 5. Trying it from a Mac first (no office gateway needed)
+
+1. Install **WireGuard** from the Mac App Store (free, by WireGuard Development Team).
+2. In Terminal (Homebrew required — https://brew.sh — the script installs `wireguard-tools` itself):
+   ```bash
+   curl -fsSLO https://raw.githubusercontent.com/dishnetafrica/wiregaurd/claude/epic-ramanujan-wkwq3j/tools/activate.sh
+   bash activate.sh DN-YOUR-CLIENT-CODE "Bhavin MacBook"
+   ```
+   Expected: `Activated: Bhavin MacBook as client for DishNet Test`,
+   `VPN address : 10.20.0.17/32`, `Allowed IPs : 10.20.0.1/32` (plus the
+   office gateway once one is registered), and `DishNet-Bhavin-MacBook.conf`
+   in the current folder.
+3. Open the WireGuard app → **Import tunnel(s) from file** → choose the
+   `.conf` → **Activate**. Within seconds the app shows a handshake and the
+   dashboard shows the device *online*.
+4. Connectivity check: `ping 10.20.0.1` replies. Anything else (e.g.
+   `ping 10.20.0.2`, `curl http://10.20.0.1`) is refused — that is the
+   default-deny policy working. On the hub, `wg show wg0` lists your key.
+5. Revoke the device in the dashboard → the handshake stops within a minute
+   and `ping 10.20.0.1` fails. Re-activating needs a new code.
+
+The Mac can only be a *client* in this pilot (the office gateway role is
+for the Windows machine that hosts Tally/RDP). To test the real use case,
+continue with §1–§2 on the office PC; the Mac then reaches it over RDP via
+Microsoft Remote Desktop from the App Store.

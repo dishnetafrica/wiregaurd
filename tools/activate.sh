@@ -11,7 +11,13 @@
 set -euo pipefail
 CODE=${1:?activation code}; NAME=${2:-$(hostname)}
 API=${API:-https://vpn.dishnetuganda.com}
-command -v wg >/dev/null || { echo "wireguard-tools (wg) not installed"; exit 1; }
+if ! command -v wg >/dev/null; then
+  if [[ "$(uname)" == "Darwin" ]] && command -v brew >/dev/null; then
+    echo "Installing wireguard-tools with Homebrew (needed once for key generation)..."; brew install -q wireguard-tools
+  else
+    echo "wireguard-tools (wg) is not installed. macOS: brew install wireguard-tools   Ubuntu: apt install wireguard-tools"; exit 1
+  fi
+fi
 
 PRIV=$(wg genkey); PUB=$(echo "$PRIV" | wg pubkey)
 BODY=$(python3 - "$CODE" "$PUB" "$NAME" "${LAN:-}" <<'EOF'

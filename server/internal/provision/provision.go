@@ -551,6 +551,14 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 			Address: netip.PrefixFrom(d.VPNIP, 32).String(), HubPublicKey: hubKey, Endpoint: s.cfg.Endpoint,
 			Keepalive: s.cfg.Keepalive, DNS: []string{}, ConfigVersion: d.ConfigVersion, AllowedIPs: []string{},
 		}
+		// The hub's own address is always routed so a client can `ping
+		// 10.20.0.1` as a connectivity check; the hub firewall allows only
+		// ICMP echo to itself, nothing else.
+		if d.Role == store.RoleClient {
+			for _, h := range s.cfg.HubAddresses {
+				allowed = append([]netip.Prefix{netip.PrefixFrom(h, 32)}, allowed...)
+			}
+		}
 		for _, a := range allowed {
 			cfg.AllowedIPs = append(cfg.AllowedIPs, a.String())
 		}
