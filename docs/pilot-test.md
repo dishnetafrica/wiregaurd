@@ -116,7 +116,8 @@ Microsoft Remote Desktop from the App Store.
 | 2026-10-02 | Hub updated to server v0.5.1 (`dishnet-vpnd a6e943d`), installer cache client-v0.3.1; `/api/v1/client/latest` = 0.3.1 / sha256 `376bdc9c…a51aff` / 55,803,150 bytes; `/guide` HTTP 200; wg0 untouched | ✔ verified from hub output |
 | 2026-10-02 | Hub updated to server v0.6.0 (`dishnet-vpnd 998ce23`), installer cache client-v0.4.0; `/api/v1/client/latest` = 0.4.0 / sha256 `c675ac1a…58bb4` / 55,819,608 bytes | ✔ verified from hub output |
 | 2026-10-02 | Office PC KISHAN on 0.3.1 (screenshot): in-place update kept activation + paid plan (to 31 Oct 2028); owner clicked Allow (RDP enabled, firewall 3389 only); device #6 at 10.20.0.69. **Tunnel stuck at "Waiting for handshake"** — hub-side peer / UDP check pending | ✖ open |
-| — | Office PC KISHAN: update 0.2.x → 0.3.1 via Update now; edition reported to dashboard; Allow Remote Desktop by owner | pending |
+| 2026-10-02 | Dashboard shows KISHAN registered 5× (10.20.0.65–.69; 2× 0.2.1, 2× 0.2.3, 1× 0.3.1) with 3 duplicate default policies; gateway code 5/5 used. Cause: uninstall deleted identity → reinstall from link re-activated. Fixed in server v0.6.1 (same-name gateway re-activation replaces the old record; revoke deletes its policies) and client 0.4.1 (uninstall keeps identity) | ✔ root-caused, fixed |
+| — | Office PC KISHAN: Update now to 0.4.x; edition reported to dashboard; stays Connected | pending |
 | — | Office gateway (Windows) + RDP from client | pending |
 | — | Revocation observed on a live tunnel | pending |
 

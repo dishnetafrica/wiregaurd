@@ -75,8 +75,13 @@ Filename: "{app}\DishNetSecureConnect.exe"; Parameters: "/setup ""{srcexe}"""; D
 [UninstallRun]
 Filename: "{pf}\WireGuard\wireguard.exe"; Parameters: "/uninstalltunnelservice DishNetOffice"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveTunnel"
 
+; Uninstall removes logs and the rendered tunnel file but KEEPS identity.bin and settings.json
+; (DPAPI-protected, machine-bound): a reinstall or upgrade from an install link must not
+; register the same computer again. "Reset this device" in the app, or revocation in the
+; dashboard, is the way to retire a device.
 [UninstallDelete]
-Type: filesandordirs; Name: "{commonappdata}\DishNet\SecureConnect"
+Type: filesandordirs; Name: "{commonappdata}\DishNet\SecureConnect\logs"
+Type: files; Name: "{commonappdata}\DishNet\SecureConnect\*.conf"
 
 [Code]
 function WireGuardInstalled(): Boolean;

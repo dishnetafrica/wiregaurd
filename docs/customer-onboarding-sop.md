@@ -175,7 +175,11 @@ repeatedly (CIT must reset the Windows password — not DishNet).
 - **Support:** use the **Support view** per customer; add a note for every
   contact. Escalation and hub procedures are in `admin-support-runbook.md`.
 - **Offboarding:** Suspend, then after the retention period revoke all
-  devices; the customer uninstalls the app (Apps & features).
+  devices; the customer uninstalls the app (Apps & features). Uninstalling
+  alone does not retire a device — its identity stays on the PC so that a
+  reinstall resumes the same registration — so always revoke in the dashboard.
+- **Office PC reinstalled or replaced under the same name:** nothing to do;
+  the hub revokes the earlier record automatically and logs `device.replaced`.
 
 ## What DishNet staff must never do
 

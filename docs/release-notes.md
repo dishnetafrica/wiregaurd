@@ -8,6 +8,30 @@ publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
+## Server v0.6.1 / client 0.4.1 — 2026-10-02 (no duplicate office computers)
+
+Found in the pilot: the office PC KISHAN had registered five times (devices
+10.20.0.65–.69), each reinstall from the install link creating a new device
+and another default policy, and using up the 5-use gateway code.
+
+- **Client 0.4.1 (installer only):** uninstalling no longer deletes the
+  device identity and settings; only logs and the rendered tunnel file go.
+  A reinstall or an upgrade from an install link therefore resumes the
+  existing registration instead of creating a new one. Retiring a device is
+  done with *Reset this device* in the app or by revocation in the dashboard.
+- **Server v0.6.1:** when an office computer activates again under the same
+  name (case-insensitive) for the same customer, the hub treats it as a
+  replacement: the old gateway record is revoked, its peer removed, its
+  policies deleted, and the event is audited as `device.replaced`. Staff
+  laptops are never replaced implicitly. Revoking any device now also deletes
+  the policies that named it, so dead rules never linger.
+- No schema change. Existing duplicates (KISHAN .67 and .68) are cleaned up
+  by revoking them in the dashboard once; .69 stays as the live office PC.
+
+Deploy: `sudo bash deploy/update-server.sh v0.6.1` and
+`sudo bash deploy/fetch-installer.sh client-v0.4.1`. Rollback: `v0.6.0` /
+`client-v0.4.0`.
+
 ## Server v0.6.0 / client 0.4.0 — 2026-10-02 (remote Tally as the main journey)
 
 The product now teaches one thing: doing Tally accounting from another

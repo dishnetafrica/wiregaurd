@@ -409,6 +409,7 @@ func (s *Service) Activate(ctx context.Context, in ActivateRequest) (ActivateRes
 		return res, err
 	}
 	now := s.now()
+	var replaceJobs []store.Job
 	var job store.Job
 	err = s.db.Tx(ctx, func(tx *store.Tx) error {
 		ac, err := tx.GetCodeByHash(auth.HashCode(code))
@@ -432,6 +433,35 @@ func (s *Service) Activate(ctx context.Context, in ActivateRequest) (ActivateRes
 		}
 		if !c.Serviceable(now) {
 			return ErrCustomerBlocked
+		}
+		// An office computer that activates again under the same name (after a
+		// reinstall or reset) replaces its earlier record: the old peer and its
+		// default policy go, so the customer never accumulates duplicate
+		// gateways. Staff laptops are never replaced implicitly.
+		if ac.Role == store.RoleGateway {
+			existing, err := tx.ListDevices(c.ID)
+			if err != nil {
+				return err
+			}
+			for _, od := range existing {
+				if od.Status != store.DeviceActive || od.Role != store.RoleGateway || !strings.EqualFold(od.Name, name) {
+					continue
+				}
+				if err := tx.RevokeDevice(od.ID, "replaced: office computer re-activated"); err != nil {
+					return err
+				}
+				if _, err := tx.DeletePoliciesForDevice(od.ID); err != nil {
+					return err
+				}
+				rj, err := tx.InsertJob(store.Job{CustomerID: c.ID, DeviceID: od.ID, PublicKey: od.PublicKey, Action: store.JobRemove})
+				if err != nil {
+					return err
+				}
+				replaceJobs = append(replaceJobs, rj)
+				if err := tx.Audit(store.AuditEntry{ActorType: "device", ActorID: fmt.Sprintf("%d", od.ID), Action: "device.replaced", Target: fmt.Sprintf("device:%d", od.ID), Detail: "same office computer re-activated with code " + fmt.Sprint(ac.ID), IP: in.RemoteIP}); err != nil {
+					return err
+				}
+			}
 		}
 		n, err := tx.CountActiveDevices(c.ID)
 		if err != nil {
@@ -502,6 +532,11 @@ func (s *Service) Activate(ctx context.Context, in ActivateRequest) (ActivateRes
 	})
 	if err != nil {
 		return res, err
+	}
+	for _, rj := range replaceJobs {
+		if err := s.applyJob(ctx, rj); err != nil {
+			s.log.Error("removing replaced gateway failed; reconciler will retry", "device", rj.DeviceID, "err", err)
+		}
 	}
 	if err := s.applyJob(ctx, job); err != nil {
 		s.log.Error("provisioning failed after activation", "device", res.Device.ID, "err", err)
@@ -749,6 +784,9 @@ func (s *Service) RevokeDevice(ctx context.Context, deviceID int64, reason, acto
 			return err
 		}
 		if err := tx.RevokeDevice(d.ID, reason); err != nil {
+			return err
+		}
+		if _, err := tx.DeletePoliciesForDevice(d.ID); err != nil {
 			return err
 		}
 		if err := tx.BumpCustomerConfigVersion(d.CustomerID); err != nil {

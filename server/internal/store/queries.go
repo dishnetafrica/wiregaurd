@@ -482,6 +482,17 @@ func (t *Tx) SetPolicyEnabled(id int64, enabled bool) error {
 	return err
 }
 
+// DeletePoliciesForDevice removes every policy that names the device as
+// source or destination; used when a device is revoked so dead rules never
+// linger in the dashboard or the firewall.
+func (t *Tx) DeletePoliciesForDevice(deviceID int64) (int64, error) {
+	res, err := t.tx.ExecContext(t.ctx, `DELETE FROM access_policies WHERE from_device_id=? OR to_device_id=?`, deviceID, deviceID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (t *Tx) DeletePolicy(id int64) error {
 	_, err := t.tx.ExecContext(t.ctx, `DELETE FROM access_policies WHERE id=?`, id)
 	return err

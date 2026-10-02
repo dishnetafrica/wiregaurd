@@ -541,3 +541,48 @@ func TestNoSecretsInConfigOrAudit(t *testing.T) {
 		return nil
 	})
 }
+
+func TestGatewayReactivationReplacesOldRecord(t *testing.T) {
+	h := newHarness(t)
+	c := h.customer("Replace", 3389)
+	first := h.activate(h.code(c, store.RoleGateway), "KISHAN")
+	cl := h.activate(h.code(c, store.RoleClient), "laptop")
+	second := h.activate(h.code(c, store.RoleGateway), "kishan") // same PC, reinstalled; name compared case-insensitively
+	if h.hasPeer(first.Device.PublicKey) || !h.hasPeer(second.Device.PublicKey) || !h.hasPeer(cl.Device.PublicKey) {
+		t.Fatal("old gateway peer must be removed, new gateway and client kept")
+	}
+	_ = h.svc.db.Tx(h.ctx, func(tx *store.Tx) error {
+		devs, _ := tx.ListDevices(c.ID)
+		active := 0
+		for _, d := range devs {
+			if d.Status == store.DeviceActive && d.Role == store.RoleGateway {
+				active++
+			}
+			if d.ID == first.Device.ID && d.Status != store.DeviceRevoked {
+				t.Fatalf("first gateway should be revoked: %+v", d)
+			}
+		}
+		if active != 1 {
+			t.Fatalf("active gateways = %d, want 1", active)
+		}
+		pols, _ := tx.ListPolicies(c.ID)
+		to := map[int64]int{}
+		for _, p := range pols {
+			if p.Enabled {
+				to[p.ToDeviceID]++
+			}
+		}
+		if to[second.Device.ID] != 1 || to[first.Device.ID] != 0 {
+			t.Fatalf("policies to old/new gateway: %v", to)
+		}
+		return nil
+	})
+	// The staff laptop's config now points only at the new gateway address.
+	cfg, err := h.svc.ConfigFor(h.ctx, cl.Device.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Access) != 1 || !strings.HasPrefix(cfg.Access[0].Target, second.Device.VPNIP.String()) {
+		t.Fatalf("client access: %+v", cfg.Access)
+	}
+}
