@@ -1,6 +1,6 @@
 # Phase 2 — VPN backend: what was built, how to stage it, blockers
 
-Status: **implemented and tested locally (dry-run backends). Not deployed.
+Status: **deployed to the live hub on 2026-10-02 (release v0.1.0); see `pilot-test.md` for the first tunnel test.**
 No change has been made to the hub at 165.227.89.92.**
 
 ---

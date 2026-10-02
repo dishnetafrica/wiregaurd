@@ -7,8 +7,8 @@ Powered by WireGuard®.
 
 | Component | Path | Status |
 |---|---|---|
-| Management service (`dishnet-vpnd`): device API, admin dashboard, WireGuard + nftables provisioner | `server/` | Phase 2 — implemented, tested with dry-run backends, **not deployed** |
-| Hub deployment: preflight audit, installer (dry-run by default), rollback, systemd, Caddy | `deploy/` | Phase 2 — written, awaiting staging |
+| Management service (`dishnet-vpnd`): device API, admin dashboard, WireGuard + nftables provisioner | `server/` | **Live** at https://vpn.dishnetuganda.com (v0.1.0) |
+| Hub deployment: preflight audit, installer (dry-run by default), rollback, systemd, Caddy | `deploy/` | **Deployed to 165.227.89.92 on 2026-10-02** (v0.1.0) |
 | Windows client + installer | `windows/` | Phase 3 — not started |
 
 ## Documents
@@ -42,3 +42,4 @@ sudo DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ADMIN_ALLOW=203.0.113.5 bash d
 sudo DISHNET_DOMAIN=vpn.dishnetuganda.com DISHNET_ADMIN_ALLOW=203.0.113.5 bash deploy/install.sh --apply
 sudo bash deploy/rollback.sh /var/backups/dishnet/<stamp>   # if anything is wrong
 ```
+* [`docs/pilot-test.md`](docs/pilot-test.md) — first two-device test with the official WireGuard client and `tools/activate.*`
