@@ -51,10 +51,10 @@ Endpoint = $($c.endpoint)
 AllowedIPs = $allowed
 PersistentKeepalive = $($c.persistent_keepalive)
 "@
-$safe = ($c.device_name -replace '[^A-Za-z0-9]+','-').Trim('-'); if (-not $safe) { $safe = "device" }
-$file = Join-Path $OutDir "DishNet-$safe.conf"
+$safe = ("dn-" + ($c.device_name -replace '[^A-Za-z0-9]+','-').Trim('-').ToLower()); if ($safe.Length -gt 15) { $safe = $safe.Substring(0,15).TrimEnd('-') }  # tunnel name <= 15 chars
+$file = Join-Path $OutDir "$safe.conf"
 Set-Content -Path $file -Value $conf -Encoding ASCII
-Set-Content -Path (Join-Path $OutDir "DishNet-$safe.token") -Value $resp.device_token -Encoding ASCII
+Set-Content -Path (Join-Path $OutDir "$safe.token") -Value $resp.device_token -Encoding ASCII
 
 Write-Host ""
 Write-Host "Activated: $($c.device_name) as $($c.role) for $($c.customer_name)" -ForegroundColor Green

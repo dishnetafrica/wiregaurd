@@ -49,13 +49,13 @@ Endpoint = {c['endpoint']}
 AllowedIPs = {allowed}
 PersistentKeepalive = {c['persistent_keepalive']}
 """
-safe="".join(ch if ch.isalnum() else "-" for ch in c["device_name"]).strip("-") or "device"
-open(f"DishNet-{safe}.conf","w").write(conf); open(f"DishNet-{safe}.token","w").write(r["device_token"])
+safe=("dn-"+"".join(ch if ch.isalnum() else "-" for ch in c["device_name"]).strip("-").lower())[:15].rstrip("-")  # wg-quick: interface name <= 15 chars
+open(f"{safe}.conf","w").write(conf); open(f"{safe}.token","w").write(r["device_token"])
 print(f"Activated: {c['device_name']} as {c['role']} for {c['customer_name']}")
 print(f"VPN address : {c['address']}\nAllowed IPs : {allowed or '(none yet — register the gateway first)'}")
 for a in c.get("access",[]): print(f"Access      : {a['label']} -> {a['target']} {a['proto']} {','.join(map(str,a['ports']))}")
-print(f"\nConfig written: DishNet-{safe}.conf   (sudo wg-quick up ./DishNet-{safe}.conf)")
+print(f"\nConfig written: {safe}.conf   (import into the WireGuard app, or: sudo wg-quick up ./{safe}.conf)")
 EOF
 )
-chmod 600 DishNet-*.conf DishNet-*.token 2>/dev/null || true
+chmod 600 dn-*.conf dn-*.token 2>/dev/null || true
 echo "$OUT"

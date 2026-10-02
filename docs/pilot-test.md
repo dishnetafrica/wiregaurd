@@ -22,7 +22,7 @@ hand; everything goes through the dashboard and the API.
    ```
    Expected: `Activated: Office server as gateway for DishNet Test`,
    `VPN address : 10.20.0.17/32`, `Allowed IPs : 10.20.0.16/28`, and a file
-   `DishNet-Office-server.conf` on the Desktop.
+   `dn-office-serve.conf` on the Desktop.
 3. WireGuard → Add Tunnel → Import tunnel(s) from file → select it → **Activate**.
    Within ~30 s the tunnel shows *Latest handshake: … seconds ago*.
 4. **Windows Firewall** — WireGuard's adapter is usually classed as a
@@ -91,7 +91,7 @@ device shows *revoked*. A second laptop can only join with a new code.
    ```
    Expected: `Activated: Bhavin MacBook as client for DishNet Test`,
    `VPN address : 10.20.0.17/32`, `Allowed IPs : 10.20.0.1/32` (plus the
-   office gateway once one is registered), and `DishNet-Bhavin-MacBook.conf`
+   office gateway once one is registered), and `dn-bhavin-macbo.conf` (tunnel names are limited to 15 characters)
    in the current folder.
 3. Open the WireGuard app → **Import tunnel(s) from file** → choose the
    `.conf` → **Activate**. Within seconds the app shows a handshake and the
