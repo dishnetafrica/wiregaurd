@@ -1,0 +1,79 @@
+# DishNet Secure Connect — release notes and rollback
+
+Each release lists what changed, how it was verified, the exact hub commands,
+and how to roll back. Server releases are tags `vX.Y.Z` (Linux binary
+`dishnet-vpnd-linux-amd64` + `.sha256`); client releases are tags
+`client-vX.Y.Z` (`DishNetSecureConnect-Setup.exe` + `.sha256`). Both are
+published from GitHub Actions (*Run workflow* → version); the hub never
+builds anything itself.
+
+## Server v0.5.1 / client 0.3.1 — 2026-10-02 (guided onboarding)
+
+**Server**
+- Dashboard onboarding progress per customer: every item labelled *verified*
+  (handshakes, registrations, approvals, the office app's own report) or
+  *entered* (typed by an admin). Next action + owner on the customers list,
+  the customer page and the new **Support view**.
+- Office Windows edition is now **verified from the office app** (it reports
+  e.g. `Windows 11 Pro …`); an admin's entry is used only when no office
+  device has reported yet. Home → attention with the Pro/other-PC advice.
+- Support notes per customer; notes containing a password are refused.
+- Public customer manual at `/guide` and `/guide.pdf`, support contact
+  from `DISHNET_SUPPORT_CONTACT` (default WhatsApp 0705 993 348) is sent to
+  the apps with every config.
+- Migration `0004_onboarding` adds `customer_onboarding` and `support_notes`
+  (additive only; no existing table is altered or dropped).
+
+**Windows client 0.3.1**
+- First-launch tour, guided checklist (Pending / Verified / Confirmed /
+  Attention), help centre, *Contact support* (WhatsApp), diagnostics zip.
+- **Consent gate:** the office app never enables Remote Desktop or touches
+  the firewall until the owner/operator clicks *Allow* after reading what
+  changes. Firewall rule is limited to TCP 3389 from the customer's VPN block.
+- **Windows Home detection:** on a Home edition the *Allow* button is
+  disabled and the app explains that Home cannot accept Remote Desktop and
+  recommends Windows Pro or another office PC.
+- Office reachability probe (TCP 3389 over the tunnel) drives the
+  "Office computer reachable" step; the handshake alone never does.
+- Activation, DPAPI-protected private key and in-place update (*Update now*)
+  unchanged from 0.2.x; 0.2.x apps update to 0.3.1 without uninstalling.
+
+**Verified before release** (see the completion report for the run ids):
+`go vet` + `go test -race ./...` (7 packages), `dotnet test` (61 tests),
+Windows solution build, release workflows green, binary and installer
+checksums match the `.sha256` assets.
+
+### Deploy (hub, as root)
+
+```bash
+cd /root/wiregaurd && git pull
+sudo bash deploy/update-server.sh v0.5.1          # expect: downloaded v0.5.1: dishnet-vpnd <commit> … healthy
+sudo bash deploy/fetch-installer.sh client-v0.3.1 # expect: sha256 OK, cached at /var/lib/dishnet/installer/
+curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.3.1" and the sha256 from the release
+curl -sI https://vpn.dishnetuganda.com/guide | head -1       # expect HTTP/2 200
+```
+
+Existing customers are not touched: no device, policy or customer row is
+modified by this update; peers and nftables rules are reconciled from the
+same records as before.
+
+### Rollback
+
+| What went wrong | Command (hub, root) | Effect |
+|---|---|---|
+| Server misbehaves after update | `sudo bash deploy/update-server.sh v0.4.0` | Reinstalls the previous binary; the `0004` tables stay (harmless, unused by v0.4.0) |
+| Whole installation broken | `sudo bash deploy/rollback.sh /var/backups/dishnet/<stamp>` | Restores binary, env, DB and nft snapshot taken by `install.sh` (deployment-runbook §6) |
+| Client 0.3.1 must be withdrawn | `sudo bash deploy/fetch-installer.sh client-v0.2.3` | `/api/v1/client/latest` then offers 0.2.3; 0.3.1 apps keep working, new installs get 0.2.3. A PC already on 0.3.1 can run the 0.2.3 installer over it (activation is kept). |
+
+Never downgrade the server below v0.4.0 after this release without restoring
+the matching database backup: v0.3.x and earlier do not know the `plan`
+tables.
+
+## Earlier
+
+| Release | Date | Summary |
+|---|---|---|
+| v0.5.0 / client 0.3.0 | 2026-10-02 | First guided-onboarding build (superseded by 0.5.1/0.3.1 the same day: Windows-edition detection added) |
+| v0.4.0 / client 0.2.3 | 2026-10-02 | In-app update, trial request page, install links with embedded codes, consent-less gateway setup fixes (error 740, ACL failure) |
+| v0.3.0 / client 0.2.0 | 2026-10-01 | Plans/trial expiry, auto-activation from install link |
+| v0.2.0 | 2026-10-01 | First hub deployment of dishnet-vpnd (migrations 0001–0002) |

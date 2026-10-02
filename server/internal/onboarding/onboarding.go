@@ -67,14 +67,28 @@ func Compute(in Input) Progress {
 		add(Item{Key: "trial", Title: "Customer created by DishNet", Detail: "No self-service request; created in the dashboard.", Status: Done, Source: SourceSystem, Owner: "DishNet admin"})
 	}
 
-	// 3. Office edition (entered).
-	switch in.Onboarding.OfficeEdition {
-	case "pro", "server":
-		add(Item{Key: "edition", Title: "Office computer runs Windows Pro/Server", Detail: "Entered: " + in.Onboarding.OfficeEdition, Status: Done, Source: SourceEntered, Owner: "Customer IT contact"})
-	case "home":
-		add(Item{Key: "edition", Title: "Office computer runs Windows Home", Detail: "Cannot accept Remote Desktop. Recommend upgrading that PC to Windows Pro, or using another office PC.", Status: Attention, Source: SourceEntered, Owner: "Customer IT contact"})
+	// 3. Office edition: verified from the office app's reported OS when available, else entered by admin.
+	var gwOS string
+	for _, d := range in.Devices {
+		if d.Role == store.RoleGateway && d.Status == store.DeviceActive {
+			gwOS = d.OS
+			break
+		}
+	}
+	switch {
+	case containsFold(gwOS, " Home "):
+		add(Item{Key: "edition", Title: "Office computer runs Windows Home", Detail: "Reported by the office app (" + gwOS + "). Cannot accept Remote Desktop: recommend upgrading that PC to Windows Pro, or another office PC running Pro.", Status: Attention, Source: SourceSystem, Owner: "Customer IT contact"})
+	case containsFold(gwOS, " Pro ") || containsFold(gwOS, "Server"):
+		add(Item{Key: "edition", Title: "Office computer runs Windows Pro/Server", Detail: "Reported by the office app (" + gwOS + ").", Status: Done, Source: SourceSystem, Owner: "Customer IT contact"})
 	default:
-		add(Item{Key: "edition", Title: "Confirm the office computer's Windows edition", Detail: "Ask the customer: Settings → System → About. Home cannot host Remote Desktop.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
+		switch in.Onboarding.OfficeEdition {
+		case "pro", "server":
+			add(Item{Key: "edition", Title: "Office computer runs Windows Pro/Server", Detail: "Entered: " + in.Onboarding.OfficeEdition, Status: Done, Source: SourceEntered, Owner: "Customer IT contact"})
+		case "home":
+			add(Item{Key: "edition", Title: "Office computer runs Windows Home", Detail: "Cannot accept Remote Desktop. Recommend upgrading that PC to Windows Pro, or using another office PC.", Status: Attention, Source: SourceEntered, Owner: "Customer IT contact"})
+		default:
+			add(Item{Key: "edition", Title: "Confirm the office computer's Windows edition", Detail: "Ask the customer: Settings → System → About. Home cannot host Remote Desktop.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
+		}
 	}
 
 	// 4./5. Gateway registered and online (observed).
@@ -173,6 +187,34 @@ func Compute(in Input) Progress {
 	}
 	p.NextAction, p.NextOwner = "Onboarding complete. Manage trial/renewal and devices as usual.", "DishNet admin"
 	return p
+}
+
+func containsFold(s, sub string) bool {
+	return len(sub) > 0 && len(s) >= len(sub) && indexFold(s, sub) >= 0
+}
+
+func indexFold(s, sub string) int {
+	ls, lsub := []rune(toLower(s)), []rune(toLower(sub))
+outer:
+	for i := 0; i+len(lsub) <= len(ls); i++ {
+		for j := range lsub {
+			if ls[i+j] != lsub[j] {
+				continue outer
+			}
+		}
+		return i
+	}
+	return -1
+}
+
+func toLower(s string) string {
+	b := []rune(s)
+	for i, r := range b {
+		if r >= 'A' && r <= 'Z' {
+			b[i] = r + 32
+		}
+	}
+	return string(b)
 }
 
 func itoa(n int) string {

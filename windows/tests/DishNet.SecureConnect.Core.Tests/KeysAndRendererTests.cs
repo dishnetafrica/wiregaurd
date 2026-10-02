@@ -319,3 +319,16 @@ public class HelpTopicsTests
         Xunit.Assert.Contains("Windows Home cannot accept Remote Desktop", all);
     }
 }
+
+public class WindowsEditionTests
+{
+    [Theory]
+    [InlineData("Core", "Windows 11 Home", DishNet.SecureConnect.Core.Onboarding.EditionClass.Home)]
+    [InlineData("CoreSingleLanguage", "Windows 10 Home Single Language", DishNet.SecureConnect.Core.Onboarding.EditionClass.Home)]
+    [InlineData("Professional", "Windows 11 Pro", DishNet.SecureConnect.Core.Onboarding.EditionClass.Pro)]
+    [InlineData("Enterprise", "Windows 10 Enterprise", DishNet.SecureConnect.Core.Onboarding.EditionClass.Pro)]
+    [InlineData("ServerStandard", "Windows Server 2022 Standard", DishNet.SecureConnect.Core.Onboarding.EditionClass.Server)]
+    [InlineData("", "", DishNet.SecureConnect.Core.Onboarding.EditionClass.Unknown)]
+    public void Classifies(string id, string name, DishNet.SecureConnect.Core.Onboarding.EditionClass want) =>
+        Xunit.Assert.Equal(want, DishNet.SecureConnect.Core.Onboarding.WindowsEdition.Classify(id, name));
+}

@@ -1,4 +1,4 @@
-# Guided onboarding release — server v0.5.0 / client 0.3.0
+# Guided onboarding release — server v0.5.1 / client 0.3.1
 
 Date: 2026-10-02. Companion to `onboarding-plan.md` (plan), `customer-onboarding-sop.md`, `admin-support-runbook.md`.
 
@@ -35,7 +35,7 @@ See `git log --stat 88c899b..HEAD`. Main areas: `windows/src/**` (app, core onbo
 
 Office PC (Windows Pro) + one staff laptop + a DishNet admin, about 45 minutes:
 
-1. Hub: `update-server.sh v0.5.0`, `fetch-installer.sh client-v0.3.0`. Dashboard → Trial requests → approve a real request (or create a customer) → note both links.
+1. Hub: `update-server.sh v0.5.1`, `fetch-installer.sh client-v0.3.1`. Dashboard → Trial requests → approve a real request (or create a customer) → note both links.
 2. Office PC: open the office link → install → the tour appears (screenshot 1) → app connects → **Allow Remote Desktop for DishNet users** appears (screenshot 2) → click Allow → status note reads "Remote Desktop enabled. Firewall allows DishNet users on port 3389." (screenshot 3). Dashboard shows gateway **online**, onboarding row "Office computer online" verified.
 3. Staff laptop: open the staff link → install → tour → Connected → checklist: first four steps verified, incl. **Office computer reachable** (screenshot 4). If it says "not answering", stop and diagnose with the Support view.
 4. **Open Remote Desktop** → sign in with the office PC's Windows account → office desktop appears → open Tally → tick **✔ Remote Desktop worked** and **✔ Tally opened** (screenshot 5: all six steps done).
@@ -43,7 +43,7 @@ Office PC (Windows Pro) + one staff laptop + a DishNet admin, about 45 minutes:
 6. Dashboard: record edition Pro, readiness Ready, acceptance passed, handover done → onboarding "complete" (screenshot 7).
 7. Resilience: pull the laptop's internet for 2 minutes → app shows Reconnecting… then Connected without clicks. Switch the office PC off → laptop checklist says "Office computer not answering" within a minute; switch on → reachable again.
 8. Revocation: revoke the laptop in the dashboard → app shows "Access revoked" within a minute; Remote Desktop no longer connects.
-9. Update: publish client 0.3.1 later → the 0.3.0 app shows the yellow bar → Update now → returns updated, still activated.
+9. Update: publish client 0.3.2 later → the 0.3.1 app shows the yellow bar → Update now → returns updated, still activated.
 
 Record outcomes in `docs/pilot-test.md` and attach the screenshots to `docs/screenshots/`.
 

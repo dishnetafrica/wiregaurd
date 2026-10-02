@@ -84,12 +84,26 @@ public static class StartupRegistration
 
 public static class OsInfo
 {
+    /// <summary>e.g. "Windows 11 Pro 10.0.22631 x64" — the edition word is what the dashboard uses to verify office-PC suitability.</summary>
     public static string Description()
     {
         var v = Environment.OSVersion.Version;
         var name = v.Build >= 22000 ? "Windows 11" : "Windows 10";
-        if (OperatingSystem.IsWindows() && IsServer()) name = "Windows Server";
-        return $"{name} {v.Major}.{v.Minor}.{v.Build} {(Environment.Is64BitOperatingSystem ? "x64" : "x86")}";
+        var edition = OperatingSystem.IsWindows() ? Edition() : Core.Onboarding.EditionClass.Unknown;
+        if (edition == Core.Onboarding.EditionClass.Server) name = "Windows Server";
+        var ed = edition == Core.Onboarding.EditionClass.Unknown ? "" : " " + Core.Onboarding.WindowsEdition.Describe(edition);
+        return $"{name}{ed} {v.Major}.{v.Minor}.{v.Build} {(Environment.Is64BitOperatingSystem ? "x64" : "x86")}";
+    }
+
+    [SupportedOSPlatform("windows")]
+    public static Core.Onboarding.EditionClass Edition()
+    {
+        try
+        {
+            using var k = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+            return Core.Onboarding.WindowsEdition.Classify(k?.GetValue("EditionID") as string, k?.GetValue("ProductName") as string);
+        }
+        catch { return Core.Onboarding.EditionClass.Unknown; }
     }
 
     [SupportedOSPlatform("windows")]

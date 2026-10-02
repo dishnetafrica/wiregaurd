@@ -66,3 +66,28 @@ func TestProgressDerivation(t *testing.T) {
 		t.Fatalf("complete: %d/%d %q", p.Done, p.Total, p.NextAction)
 	}
 }
+
+func TestEditionVerifiedFromOfficeApp(t *testing.T) {
+	now := time.Now()
+	c := store.Customer{ID: 1, Name: "X", Plan: store.PlanTrial}
+	home := store.Device{ID: 2, CustomerID: 1, Name: "KISHAN", Role: store.RoleGateway, Status: store.DeviceActive, VPNIP: netip.MustParseAddr("10.20.0.65"), OS: "Windows 11 Home 10.0.22631 x64", LastHandshakeAt: now}
+	p := Compute(Input{Customer: c, Devices: []store.Device{home}, Onboarding: store.Onboarding{OfficeEdition: "pro", Readiness: "not_checked"}, Now: now})
+	var ed Item
+	for _, it := range p.Items {
+		if it.Key == "edition" {
+			ed = it
+		}
+	}
+	// The app's report (verified) beats the admin's entry: Home is flagged even though an admin typed "pro".
+	if ed.Status != Attention || ed.Source != SourceSystem || !strings.Contains(ed.Detail, "Windows Pro") {
+		t.Fatalf("home from app: %+v", ed)
+	}
+	pro := home
+	pro.OS = "Windows 11 Pro 10.0.22631 x64"
+	p = Compute(Input{Customer: c, Devices: []store.Device{pro}, Onboarding: store.Onboarding{OfficeEdition: "unknown", Readiness: "not_checked"}, Now: now})
+	for _, it := range p.Items {
+		if it.Key == "edition" && (it.Status != Done || it.Source != SourceSystem) {
+			t.Fatalf("pro from app: %+v", it)
+		}
+	}
+}

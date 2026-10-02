@@ -76,6 +76,9 @@
                         </Grid>
                     </Border>
 
+                    <Border Background="{StaticResource BadSoft}" CornerRadius="6" Padding="12,8" Margin="0,0,0,16" Visibility="{Binding HasHomeWarning, Converter={StaticResource Vis}}">
+                        <TextBlock Text="{Binding HomeWarning}" Foreground="{StaticResource Bad}"/>
+                    </Border>
                     <!-- Office computer: explicit, explained consent before anything is changed -->
                     <Border CornerRadius="8" Padding="16" Margin="0,0,0,16" Background="{StaticResource WarnSoft}" BorderBrush="{StaticResource Warn}" BorderThickness="1" Visibility="{Binding ShowGatewayConsent, Converter={StaticResource Vis}}">
                         <StackPanel>

@@ -43,7 +43,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _session = session; _tunnel = tunnel; _log = log; _api = api; _http = http; _apiOrigin = apiOrigin; _settings = settings;
         _session.GatewayConsentGranted = settings.Current.GatewayConsentGiven;
         UpdateCommand = new RelayCommand(UpdateAsync, () => _update is not null);
-        AllowGatewayCommand = new RelayCommand(AllowGatewayAsync, () => IsGateway && !GatewayConsentGiven);
+        AllowGatewayCommand = new RelayCommand(AllowGatewayAsync, () => IsGateway && !GatewayConsentGiven && !OfficeIsHome);
         OpenRemoteDesktopCommand = new RelayCommand(OpenRemoteDesktopAsync, () => !IsGateway && OfficeHost.Length > 0);
         ConfirmRdpCommand = new RelayCommand(() => ConfirmStepAsync(Checklist.KeyRdpInstructions), () => IsActivated && !IsGateway);
         ConfirmTallyCommand = new RelayCommand(() => ConfirmStepAsync(Checklist.KeyTally), () => IsActivated && !IsGateway);
@@ -129,6 +129,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string SupportLine => SupportContact.Length > 0 ? "DishNet support: " + SupportContact : "Contact DishNet support";
     public bool GatewayConsentGiven => _settings.Current.GatewayConsentGiven;
     public bool ShowGatewayConsent => IsActivated && IsGateway && !GatewayConsentGiven;
+    public bool OfficeIsHome => OperatingSystem.IsWindows() && OsInfo.Edition() == EditionClass.Home;
+    public string HomeWarning => OfficeIsHome
+        ? "This computer runs Windows Home, which cannot accept Remote Desktop connections, so it cannot be the office computer for DishNet. Recommended: upgrade this PC to Windows Pro (a licence upgrade, no reinstall) or use another office PC that runs Pro. Contact DishNet for advice."
+        : "";
+    public bool HasHomeWarning => IsGateway && OfficeIsHome;
     public bool ShowClientTools => IsActivated && !IsGateway;
     private string _officeHost = "";
     public string OfficeHost { get => _officeHost; private set => Set(ref _officeHost, value); }
@@ -187,7 +192,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Steps.Clear();
             foreach (var s in steps) Steps.Add(s);
             NextAction = Checklist.NextAction(steps);
-            Notify(nameof(ShowGatewayConsent), nameof(ShowClientTools), nameof(GatewayConsentGiven), nameof(GatewayConsentText));
+            Notify(nameof(ShowGatewayConsent), nameof(ShowClientTools), nameof(GatewayConsentGiven), nameof(GatewayConsentText), nameof(HasHomeWarning), nameof(HomeWarning));
             AllowGatewayCommand.Raise(); OpenRemoteDesktopCommand.Raise(); ConfirmRdpCommand.Raise(); ConfirmTallyCommand.Raise();
             OfficeTargets = cfg is null ? "" : IsGateway
                 ? "This computer is the office server. Staff devices connect to it through DishNet."
