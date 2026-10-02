@@ -6,3 +6,4 @@ server/dishnet-vpnd
 # local secrets
 *.env
 !deploy/**/*.example
+*.tgz

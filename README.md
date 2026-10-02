@@ -16,7 +16,9 @@ Powered by WireGuard®.
 * [`docs/phase1-architecture.md`](docs/phase1-architecture.md) — findings, architecture, risks
 * [`docs/decisions.md`](docs/decisions.md) — approved decisions
 * [`docs/address-plan.md`](docs/address-plan.md) — `/28` plan, capacity, growth beyond the `/24`
-* [`docs/phase2-backend.md`](docs/phase2-backend.md) — what was built, API contract, staging procedure, security review, blockers
+* [`docs/phase2-backend.md`](docs/phase2-backend.md) — what was built, API contract, staging procedure, security review
+* [`docs/server-audit-2026-10-02.md`](docs/server-audit-2026-10-02.md) — hub audit findings
+* [`docs/deployment-runbook.md`](docs/deployment-runbook.md) — exact commands, expected output, rollback, SSH safety, test results
 
 ## Quick start (development, nothing touched on this machine)
 
