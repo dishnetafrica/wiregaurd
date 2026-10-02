@@ -30,6 +30,7 @@ public sealed class SessionManager
     private readonly DeviceIdentityStore _store;
     private readonly ITunnelController _tunnel;
     private readonly Func<DateTimeOffset> _now;
+    private readonly IGatewaySetup? _gateway;
     private readonly string _apiOrigin;
     private readonly string _osDescription;
 
@@ -39,9 +40,10 @@ public sealed class SessionManager
     private string? _lastError;
     private bool _wantUp;
 
-    public SessionManager(ApiClient api, DeviceIdentityStore store, ITunnelController tunnel, string apiOrigin, string osDescription, Func<DateTimeOffset>? now = null)
+    public SessionManager(ApiClient api, DeviceIdentityStore store, ITunnelController tunnel, string apiOrigin, string osDescription, Func<DateTimeOffset>? now = null, IGatewaySetup? gateway = null)
     {
         _api = api;
+        _gateway = gateway;
         _store = store;
         _tunnel = tunnel;
         _apiOrigin = apiOrigin;
@@ -54,6 +56,7 @@ public sealed class SessionManager
     public DeviceIdentity? Identity => _identity;
     public DeviceConfig? Config => _config;
     public string? LastError => _lastError;
+    public string? GatewayNote { get; private set; }
     public event Action? Changed;
 
     private void Notify() => Changed?.Invoke();
@@ -157,6 +160,11 @@ public sealed class SessionManager
             var text = TunnelConfigRenderer.Render(cfg, id.PrivateKey);
             await _tunnel.StartAsync(text, ct);
             _lastError = null;
+            if (cfg.IsGateway && _gateway is not null)
+            {
+                try { GatewayNote = await _gateway.ApplyAsync(cfg.GatewayPorts, cfg.VpnPool, ct); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { GatewayNote = "Remote Desktop could not be enabled automatically: " + ex.Message; }
+            }
         }
         catch (UnauthorizedAccessException ex)
         {

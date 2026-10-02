@@ -43,8 +43,8 @@ public partial class App : Application
         var api = new ApiClient(http, ClientVersion);
         var store = new DeviceIdentityStore(Paths.IdentityFile, new DpapiProtector());
         var tunnel = new WireGuardTunnelController(_log);
-        var session = new SessionManager(api, store, tunnel, origin, OsInfo.Description());
-        var vm = new MainViewModel(session, tunnel, _log);
+        var session = new SessionManager(api, store, tunnel, origin, OsInfo.Description(), gateway: new WindowsGatewaySetup(_log));
+        var vm = new MainViewModel(session, tunnel, _log, api, http, origin);
 
         var window = new MainWindow { DataContext = vm };
         MainWindow = window;
@@ -62,8 +62,10 @@ public partial class App : Application
         {
             tick++;
             if (tick % 4 == 0) await vm.HeartbeatAsync(); // every 60 s
+            if (tick % 5760 == 0) await vm.CheckForUpdateAsync(); // every 24 h
             await vm.RefreshAsync();
         };
         _timer.Start();
+        _ = vm.CheckForUpdateAsync();
     }
 }

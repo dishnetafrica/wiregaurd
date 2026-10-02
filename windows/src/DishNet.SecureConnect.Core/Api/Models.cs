@@ -17,6 +17,8 @@ public sealed record DeviceConfig
     [JsonPropertyName("dns")] public IReadOnlyList<string> Dns { get; init; } = Array.Empty<string>();
     [JsonPropertyName("access")] public IReadOnlyList<AccessTarget> Access { get; init; } = Array.Empty<AccessTarget>();
     [JsonPropertyName("config_version")] public int ConfigVersion { get; init; }
+    [JsonPropertyName("gateway_ports")] public IReadOnlyList<int> GatewayPorts { get; init; } = Array.Empty<int>();
+    [JsonPropertyName("vpn_pool")] public string VpnPool { get; init; } = "";
     [JsonPropertyName("plan")] public string Plan { get; init; } = "";
     [JsonPropertyName("subscription_expires_at")] public string? SubscriptionExpiresAt { get; init; }
 
@@ -63,6 +65,14 @@ public sealed record HeartbeatResponse
 public sealed record RotateKeyRequest
 {
     [JsonPropertyName("new_public_key")] public string NewPublicKey { get; init; } = "";
+}
+
+public sealed record LatestClient
+{
+    [JsonPropertyName("version")] public string Version { get; init; } = "";
+    [JsonPropertyName("url")] public string Url { get; init; } = "";
+    [JsonPropertyName("sha256")] public string Sha256 { get; init; } = "";
+    [JsonPropertyName("size")] public long Size { get; init; }
 }
 
 public sealed record ApiErrorBody

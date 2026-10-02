@@ -28,9 +28,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly AppLog _log;
     private readonly CancellationTokenSource _cts = new();
 
-    public MainViewModel(SessionManager session, WireGuardTunnelController tunnel, AppLog log)
+    private readonly ApiClient _api;
+    private readonly System.Net.Http.HttpClient _http;
+    private readonly string _apiOrigin;
+    private LatestClient? _update;
+
+    public MainViewModel(SessionManager session, WireGuardTunnelController tunnel, AppLog log, ApiClient api, System.Net.Http.HttpClient http, string apiOrigin)
     {
-        _session = session; _tunnel = tunnel; _log = log;
+        _session = session; _tunnel = tunnel; _log = log; _api = api; _http = http; _apiOrigin = apiOrigin;
+        UpdateCommand = new RelayCommand(UpdateAsync, () => _update is not null);
         ActivateCommand = new RelayCommand(ActivateAsync, () => !IsActivated && Code.Trim().Length >= 10);
         ConnectCommand = new RelayCommand(ConnectAsync, () => IsActivated && !IsConnected);
         DisconnectCommand = new RelayCommand(DisconnectAsync, () => IsActivated && IsConnected);
@@ -93,6 +99,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool HasInfo => Info.Length > 0;
     private bool _isGateway;
     public bool IsGateway { get => _isGateway; private set => Set(ref _isGateway, value); }
+    private string _gatewayNote = "";
+    public string GatewayNote { get => _gatewayNote; private set { Set(ref _gatewayNote, value); Notify(nameof(HasGatewayNote)); } }
+    public bool HasGatewayNote => GatewayNote.Length > 0;
+    private string _updateText = "";
+    public string UpdateText { get => _updateText; private set { Set(ref _updateText, value); Notify(nameof(HasUpdate)); UpdateCommand.Raise(); } }
+    public bool HasUpdate => UpdateText.Length > 0;
+    public RelayCommand UpdateCommand { get; }
     private string _planText = "";
     public string PlanText { get => _planText; private set => Set(ref _planText, value); }
 
@@ -136,6 +149,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Handshake = st.LastHandshake is { } h ? $"Last handshake {(DateTimeOffset.UtcNow - h).TotalSeconds:0} s ago" : (st.Running ? "Waiting for handshake…" : "");
             Traffic = st.Running ? $"↓ {st.RxBytes / 1e6:0.0} MB  ↑ {st.TxBytes / 1e6:0.0} MB" : "";
             Error = _session.LastError ?? "";
+            GatewayNote = IsGateway ? (_session.GatewayNote ?? "") : "";
         }
         catch (Exception ex)
         {
@@ -209,6 +223,32 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         try { await _session.HeartbeatAsync(_cts.Token); }
         catch (Exception ex) { _log.Warn("heartbeat: " + ex.Message); }
+    }
+
+    public async Task CheckForUpdateAsync()
+    {
+        try
+        {
+            var latest = await _api.GetLatestClientAsync(_cts.Token);
+            _update = UpdateCheck.Evaluate(App.ClientVersion, latest, _apiOrigin);
+            UpdateText = _update is null ? "" : $"Version {_update.Version} of DishNet Secure Connect is available.";
+        }
+        catch (Exception ex) { _log.Warn("update check: " + ex.Message); }
+    }
+
+    private async Task UpdateAsync()
+    {
+        var u = _update;
+        if (u is null) return;
+        try
+        {
+            Info = $"Downloading version {u.Version}…";
+            var path = await Updater.DownloadAsync(_http, u, new Progress<double>(p => Info = $"Downloading version {u.Version}… {p:P0}"), _cts.Token);
+            Info = "Installing the update. DishNet Secure Connect will restart in a moment.";
+            _log.Info("running updater " + u.Version);
+            Updater.RunInstaller(path);
+        }
+        catch (Exception ex) { Error = "Update failed: " + ex.Message; _log.Error("update: " + ex); }
     }
 
     private async Task DiagnosticsAsync()

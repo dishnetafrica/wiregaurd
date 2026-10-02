@@ -74,3 +74,18 @@ Donenfeld / WireGuard LLC); redistribution with the licence text is
 permitted. "WireGuard" is a registered trademark; the product is "DishNet
 Secure Connect, powered by WireGuard®" and never names a service or file
 "WireGuard".
+
+## Self-update and gateway auto-setup (client 0.2.3 / server 0.4.0)
+
+* **Updates**: the app asks the hub (`GET /api/v1/client/latest`) at start
+  and daily. If the hub carries a newer build (`deploy/fetch-installer.sh`
+  after each release), a banner offers **Update now**: the installer is
+  downloaded from the hub only (same host, HTTPS), its SHA-256 verified
+  against the hub's value, then run with `/SILENT /CLOSEAPPLICATIONS
+  /RESTARTAPPLICATIONS`. Identity and the running tunnel service survive;
+  nothing is uninstalled. Builds before 0.2.3 do not know how to check, so
+  they are upgraded once by running the installer.
+* **Office gateway**: on Connect, a gateway-role device enables Remote
+  Desktop (`fDenyTSConnections=0`), enables Windows' "Remote Desktop"
+  firewall group and adds inbound TCP rules for the ports DishNet policies
+  allow, scoped to the VPN range only. The customer does nothing.

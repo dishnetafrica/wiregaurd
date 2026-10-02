@@ -45,6 +45,7 @@
                             <TextBlock Text="{Binding StateTitle}" FontSize="26" FontWeight="SemiBold" Margin="0,2,0,2"/>
                             <TextBlock Text="{Binding StateDetail}" Style="{StaticResource MutedText}"/>
                             <TextBlock Text="{Binding PlanText}" FontSize="13" Foreground="{StaticResource Warn}" Margin="0,8,0,0"/>
+                            <TextBlock Text="{Binding GatewayNote}" Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding HasGatewayNote, Converter={StaticResource Vis}}"/>
                             <TextBlock Text="{Binding Handshake}" Style="{StaticResource MutedText}" Margin="0,6,0,0"/>
                             <TextBlock Text="{Binding Traffic}" Style="{StaticResource MutedText}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
@@ -75,6 +76,14 @@
                         <Button Style="{StaticResource Secondary}" Command="{Binding ForgetCommand}" Margin="10,0,0,0">Reset this device</Button>
                     </StackPanel>
                 </StackPanel>
+
+                <!-- Update banner -->
+                <Border Background="{StaticResource WarnSoft}" CornerRadius="6" Padding="12,8" Margin="0,16,0,0" Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Secondary}" Command="{Binding UpdateCommand}" Content="Update now" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding UpdateText}" Foreground="{StaticResource Warn}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    </DockPanel>
+                </Border>
 
                 <!-- Messages -->
                 <Border Background="{StaticResource BadSoft}" CornerRadius="6" Padding="12,8" Margin="0,16,0,0" Visibility="{Binding HasError, Converter={StaticResource Vis}}">

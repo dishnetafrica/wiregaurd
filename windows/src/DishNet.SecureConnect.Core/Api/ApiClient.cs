@@ -126,6 +126,14 @@ public sealed class ApiClient
         return await SendAsync<DeviceConfig>(msg, ct);
     }
 
+    /// <summary>Which client build the hub currently offers (no auth: it is public information).</summary>
+    public async Task<LatestClient?> GetLatestClientAsync(CancellationToken ct)
+    {
+        using var msg = new HttpRequestMessage(HttpMethod.Get, "/api/v1/client/latest");
+        try { return await SendAsync<LatestClient>(msg, ct); }
+        catch (ApiException ex) when (ex.Status == HttpStatusCode.NotFound) { return null; }
+    }
+
     private async Task<T> SendAsync<T>(HttpRequestMessage msg, CancellationToken ct)
     {
         HttpResponseMessage res;

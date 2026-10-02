@@ -145,3 +145,62 @@ public class InstallLinkTests
         Xunit.Assert.Equal("", DishNet.SecureConnect.Core.Session.PlanText.Describe(new DishNet.SecureConnect.Core.Api.DeviceConfig { Plan = "unlimited" }, now));
     }
 }
+
+public class UpdateCheckTests
+{
+    [Theory]
+    [InlineData("0.2.2", "0.2.3", true)]
+    [InlineData("0.2.2", "0.2.2", false)]
+    [InlineData("0.2.3", "0.2.2", false)]
+    [InlineData("0.2.2", "v0.3.0", true)]
+    [InlineData("0.2.2", "garbage", false)]
+    public void ComparesVersions(string running, string offered, bool want) => Xunit.Assert.Equal(want, DishNet.SecureConnect.Core.Session.UpdateCheck.IsNewer(running, offered));
+
+    [Fact]
+    public void OnlyAcceptsOurHubOverHttps()
+    {
+        var sha = new string('a', 64);
+        var ok = new DishNet.SecureConnect.Core.Api.LatestClient { Version = "9.9.9", Url = "https://vpn.dishnetuganda.com/download/DishNetSecureConnect-Setup.exe", Sha256 = sha };
+        Xunit.Assert.NotNull(DishNet.SecureConnect.Core.Session.UpdateCheck.Evaluate("0.2.2", ok, "https://vpn.dishnetuganda.com"));
+        Xunit.Assert.Null(DishNet.SecureConnect.Core.Session.UpdateCheck.Evaluate("0.2.2", ok with { Url = "https://evil.example/x.exe" }, "https://vpn.dishnetuganda.com"));
+        Xunit.Assert.Null(DishNet.SecureConnect.Core.Session.UpdateCheck.Evaluate("0.2.2", ok with { Url = "http://vpn.dishnetuganda.com/x.exe" }, "https://vpn.dishnetuganda.com"));
+        Xunit.Assert.Null(DishNet.SecureConnect.Core.Session.UpdateCheck.Evaluate("0.2.2", ok with { Sha256 = "short" }, "https://vpn.dishnetuganda.com"));
+        Xunit.Assert.Null(DishNet.SecureConnect.Core.Session.UpdateCheck.Evaluate("9.9.9", ok, "https://vpn.dishnetuganda.com"));
+    }
+}
+
+public class GatewaySetupHookTests
+{
+    sealed class FakeGateway : DishNet.SecureConnect.Core.Session.IGatewaySetup
+    {
+        public IReadOnlyList<int>? Ports; public string? Pool;
+        public Task<string> ApplyAsync(IReadOnlyList<int> tcpPorts, string vpnPool, CancellationToken ct) { Ports = tcpPorts; Pool = vpnPool; return Task.FromResult("ok"); }
+    }
+
+    [Fact]
+    public async Task GatewayConnect_AppliesPortsAndPool()
+    {
+        var api = new FakeApi
+        {
+            Handler = (req, _) => req.RequestUri!.AbsolutePath == "/api/v1/activate"
+                ? (System.Net.HttpStatusCode.Created, new { device_token = "dnd_t", config = Gw() })
+                : (System.Net.HttpStatusCode.OK, Gw()),
+        };
+        var gw = new FakeGateway();
+        var store = new DishNet.SecureConnect.Core.Secrets.DeviceIdentityStore(Path.Combine(Path.GetTempPath(), "dn-gw-" + Guid.NewGuid(), "id.bin"), new DishNet.SecureConnect.Core.Secrets.InsecureXorProtector());
+        var sm = new DishNet.SecureConnect.Core.Session.SessionManager(new DishNet.SecureConnect.Core.Api.ApiClient(new HttpClient(api) { BaseAddress = new Uri("https://vpn.test") }, "t"), store, new FakeTunnel(), "https://vpn.test", "win", gateway: gw);
+        await sm.ActivateAsync("DN-J668-7GMJ-NFW7-XLCP", "Office", null, default);
+        await sm.ConnectAsync(default);
+        Xunit.Assert.Equal(new[] { 3389, 9000 }, gw.Ports);
+        Xunit.Assert.Equal("10.20.0.0/24", gw.Pool);
+        Xunit.Assert.Equal("ok", sm.GatewayNote);
+    }
+
+    private static object Gw() => new
+    {
+        device_id = 2, device_name = "Office", role = "gateway", customer_name = "Kishan Bhai", address = "10.20.0.65/32",
+        hub_public_key = "UBCUzaw/MppPOGdTq7FRm2ZGn+TsaTYR8MhtAgv6tVs=", endpoint = "165.227.89.92:51820",
+        allowed_ips = new[] { "10.20.0.64/28" }, persistent_keepalive = 25, dns = Array.Empty<string>(), access = Array.Empty<object>(),
+        config_version = 1, gateway_ports = new[] { 3389, 9000 }, vpn_pool = "10.20.0.0/24", plan = "trial",
+    };
+}
