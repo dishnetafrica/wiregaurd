@@ -20,6 +20,7 @@ public sealed record DeviceConfig
     [JsonPropertyName("gateway_ports")] public IReadOnlyList<int> GatewayPorts { get; init; } = Array.Empty<int>();
     [JsonPropertyName("vpn_pool")] public string VpnPool { get; init; } = "";
     [JsonPropertyName("plan")] public string Plan { get; init; } = "";
+    [JsonPropertyName("support_contact")] public string SupportContact { get; init; } = "";
     [JsonPropertyName("subscription_expires_at")] public string? SubscriptionExpiresAt { get; init; }
 
     public bool IsGateway => string.Equals(Role, "gateway", StringComparison.OrdinalIgnoreCase);

@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 using DishNet.SecureConnect.Core.Api;
+using DishNet.SecureConnect.Core.Onboarding;
 using DishNet.SecureConnect.Core.Secrets;
 using DishNet.SecureConnect.Core.Session;
 using DishNet.SecureConnect.Windows;
@@ -43,13 +44,16 @@ public partial class App : Application
         var api = new ApiClient(http, ClientVersion);
         var store = new DeviceIdentityStore(Paths.IdentityFile, new DpapiProtector());
         var tunnel = new WireGuardTunnelController(_log);
-        var session = new SessionManager(api, store, tunnel, origin, OsInfo.Description(), gateway: new WindowsGatewaySetup(_log));
-        var vm = new MainViewModel(session, tunnel, _log, api, http, origin);
+        var settings = new UserSettingsStore(System.IO.Path.Combine(Paths.DataDir, "settings.json"));
+        var session = new SessionManager(api, store, tunnel, origin, OsInfo.Description(), gateway: new WindowsGatewaySetup(_log), probe: new TcpReachabilityProbe());
+        var vm = new MainViewModel(session, tunnel, _log, api, http, origin, settings);
 
         var window = new MainWindow { DataContext = vm };
         MainWindow = window;
         if (e.Args.Contains("/minimized")) window.WindowState = WindowState.Minimized;
         window.Show();
+        // First launch: the 2-minute tour (can be replayed from the main screen or the help centre).
+        if (!settings.Current.TourDone && !e.Args.Contains("/minimized")) vm.ShowTour(window);
         // Install link: the installer passes its own file name, which carries the activation code.
         var linkCode = InstallLink.CodeFromArgs(e.Args);
         if (linkCode is not null && !session.IsActivated) _ = vm.AutoSetupAsync(linkCode);

@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Collections.ObjectModel;
 using DishNet.SecureConnect.Core.Api;
+using DishNet.SecureConnect.Core.Onboarding;
 using DishNet.SecureConnect.Core.Session;
 using DishNet.SecureConnect.Windows;
 
@@ -33,10 +35,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly string _apiOrigin;
     private LatestClient? _update;
 
-    public MainViewModel(SessionManager session, WireGuardTunnelController tunnel, AppLog log, ApiClient api, System.Net.Http.HttpClient http, string apiOrigin)
+    private readonly UserSettingsStore _settings;
+    private DateTimeOffset _lastProbeAt;
+
+    public MainViewModel(SessionManager session, WireGuardTunnelController tunnel, AppLog log, ApiClient api, System.Net.Http.HttpClient http, string apiOrigin, UserSettingsStore settings)
     {
-        _session = session; _tunnel = tunnel; _log = log; _api = api; _http = http; _apiOrigin = apiOrigin;
+        _session = session; _tunnel = tunnel; _log = log; _api = api; _http = http; _apiOrigin = apiOrigin; _settings = settings;
+        _session.GatewayConsentGranted = settings.Current.GatewayConsentGiven;
         UpdateCommand = new RelayCommand(UpdateAsync, () => _update is not null);
+        AllowGatewayCommand = new RelayCommand(AllowGatewayAsync, () => IsGateway && !GatewayConsentGiven);
+        OpenRemoteDesktopCommand = new RelayCommand(OpenRemoteDesktopAsync, () => !IsGateway && OfficeHost.Length > 0);
+        ConfirmRdpCommand = new RelayCommand(() => ConfirmStepAsync(Checklist.KeyRdpInstructions), () => IsActivated && !IsGateway);
+        ConfirmTallyCommand = new RelayCommand(() => ConfirmStepAsync(Checklist.KeyTally), () => IsActivated && !IsGateway);
         ActivateCommand = new RelayCommand(ActivateAsync, () => !IsActivated && Code.Trim().Length >= 10);
         ConnectCommand = new RelayCommand(ConnectAsync, () => IsActivated && !IsConnected);
         DisconnectCommand = new RelayCommand(DisconnectAsync, () => IsActivated && IsConnected);
@@ -106,6 +116,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string UpdateText { get => _updateText; private set { Set(ref _updateText, value); Notify(nameof(HasUpdate)); UpdateCommand.Raise(); } }
     public bool HasUpdate => UpdateText.Length > 0;
     public RelayCommand UpdateCommand { get; }
+    public RelayCommand AllowGatewayCommand { get; }
+    public RelayCommand OpenRemoteDesktopCommand { get; }
+    public RelayCommand ConfirmRdpCommand { get; }
+    public RelayCommand ConfirmTallyCommand { get; }
+
+    public ObservableCollection<ChecklistStep> Steps { get; } = new();
+    private string _nextAction = "";
+    public string NextAction { get => _nextAction; private set => Set(ref _nextAction, value); }
+    private string _supportContact = "";
+    public string SupportContact { get => _supportContact; private set { Set(ref _supportContact, value); Notify(nameof(SupportLine)); } }
+    public string SupportLine => SupportContact.Length > 0 ? "DishNet support: " + SupportContact : "Contact DishNet support";
+    public bool GatewayConsentGiven => _settings.Current.GatewayConsentGiven;
+    public bool ShowGatewayConsent => IsActivated && IsGateway && !GatewayConsentGiven;
+    public bool ShowClientTools => IsActivated && !IsGateway;
+    private string _officeHost = "";
+    public string OfficeHost { get => _officeHost; private set => Set(ref _officeHost, value); }
+    public string GatewayConsentText => "To let your staff use Remote Desktop on this computer, DishNet Secure Connect needs to:\n" +
+        "  •  switch on Windows Remote Desktop on this computer;\n" +
+        "  •  allow connections to it only from DishNet-authorised devices on the Remote Desktop port" + (GatewayPortsText.Length > 0 ? " (" + GatewayPortsText + ")" : "") + ".\n" +
+        "Nothing is opened to the internet or to the rest of your office network. You can undo this in Windows settings at any time.";
+    private string _gatewayPortsText = "";
+    public string GatewayPortsText { get => _gatewayPortsText; private set => Set(ref _gatewayPortsText, value); }
     private string _planText = "";
     public string PlanText { get => _planText; private set => Set(ref _planText, value); }
 
@@ -142,6 +174,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
             IsGateway = id?.Role == "gateway";
             VpnAddress = cfg?.Address ?? "";
             PlanText = Core.Session.PlanText.Describe(cfg, DateTimeOffset.UtcNow);
+            SupportContact = cfg?.SupportContact ?? SupportContact;
+            GatewayPortsText = cfg is null ? "" : string.Join(", ", cfg.GatewayPorts);
+            OfficeHost = cfg is { IsGateway: false } && cfg.Access.Count > 0 ? cfg.Access[0].Target.Split('/')[0] : "";
+            // Probe the office computer at most every 30 s while connected; the checklist never claims reachability without it.
+            if (State == ConnectionState.Connected && !IsGateway && DateTimeOffset.UtcNow - _lastProbeAt > TimeSpan.FromSeconds(30))
+            {
+                _lastProbeAt = DateTimeOffset.UtcNow;
+                await _session.ProbeOfficeAsync(_cts.Token);
+            }
+            var steps = Checklist.Build(IsActivated, cfg, State, _session.LastProbe, _settings.Current);
+            Steps.Clear();
+            foreach (var s in steps) Steps.Add(s);
+            NextAction = Checklist.NextAction(steps);
+            Notify(nameof(ShowGatewayConsent), nameof(ShowClientTools), nameof(GatewayConsentGiven), nameof(GatewayConsentText));
+            AllowGatewayCommand.Raise(); OpenRemoteDesktopCommand.Raise(); ConfirmRdpCommand.Raise(); ConfirmTallyCommand.Raise();
             OfficeTargets = cfg is null ? "" : IsGateway
                 ? "This computer is the office server. Staff devices connect to it through DishNet."
                 : cfg.Access.Count == 0 ? "No office server registered yet — ask DishNet." : string.Join("\n", cfg.Access.Select(a => $"{a.Label}: {a.Target} ({a.Proto} {string.Join(",", a.Ports)})"));
@@ -223,6 +270,59 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         try { await _session.HeartbeatAsync(_cts.Token); }
         catch (Exception ex) { _log.Warn("heartbeat: " + ex.Message); }
+    }
+
+    // ---------- onboarding ----------
+
+    private async Task AllowGatewayAsync()
+    {
+        _settings.Update(s => s with { GatewayConsentAt = DateTimeOffset.UtcNow, GatewayConsentDeclined = false });
+        _log.Info("gateway consent given by operator");
+        await _session.GrantGatewayConsentAsync(_cts.Token);
+        await RefreshAsync();
+    }
+
+    public void DeclineGateway()
+    {
+        _settings.Update(s => s with { GatewayConsentDeclined = true });
+        Info = "Remote Desktop was not enabled. Staff cannot reach this computer until you allow it (button on this screen).";
+    }
+
+    private Task OpenRemoteDesktopAsync()
+    {
+        try
+        {
+            if (OfficeHost.Length == 0) return Task.CompletedTask;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("mstsc.exe", $"/v:{OfficeHost}") { UseShellExecute = true });
+            Info = "Remote Desktop is opening. Sign in with your Windows user name and password for the office computer. DishNet never sees this password.";
+        }
+        catch (Exception ex) { Error = "Could not open Remote Desktop: " + ex.Message; }
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmStepAsync(string key)
+    {
+        _settings.Update(s => key == Checklist.KeyRdpInstructions ? s with { ConfirmedRdpInstructionsAt = DateTimeOffset.UtcNow } : s with { ConfirmedTallyOpenedAt = DateTimeOffset.UtcNow });
+        await RefreshAsync();
+    }
+
+    public void ShowTour(System.Windows.Window owner)
+    {
+        var tour = new TourWindow { Owner = owner };
+        tour.ShowDialog();
+        _settings.Update(s => tour.Completed ? s with { TourCompletedAt = DateTimeOffset.UtcNow, TourSkipped = false } : s with { TourSkipped = true });
+    }
+
+    public bool TourDone => _settings.Current.TourDone;
+
+    public void ShowHelp(System.Windows.Window owner, string? topic = null) => new HelpWindow(this, topic) { Owner = owner }.Show();
+
+    public void ContactSupport(System.Windows.Window owner)
+    {
+        var text = SupportContact.Length > 0 ? SupportContact : "your DishNet representative";
+        System.Windows.MessageBox.Show(owner,
+            $"Contact DishNet support: {text}\n\nPlease tell us your business name and what the app shows (for example \"Office computer not answering\").\nUse \"Save diagnostics…\" and send the file if asked. Never send your Windows or Tally password.",
+            "DishNet support", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
 
     public async Task CheckForUpdateAsync()

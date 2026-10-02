@@ -303,3 +303,19 @@ public class ChecklistTests
         Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable, await sm.ProbeOfficeAsync(default));
     }
 }
+
+public class HelpTopicsTests
+{
+    [Fact]
+    public void AllTenTopicsPresent_NoSecretsOrInternals()
+    {
+        var titles = DishNet.SecureConnect.Core.Onboarding.HelpTopics.All.Select(t => t.Title).ToList();
+        foreach (var want in new[] { "What is DishNet Secure Connect", "How does it work", "How to connect for the first time", "How to access Tally remotely", "How to disconnect safely", "What to do when the connection fails", "How to add another authorised computer", "How updates work", "Security, privacy and data location", "Frequently asked questions" })
+            Xunit.Assert.Contains(titles, t => t.StartsWith(want));
+        var all = DishNet.SecureConnect.Core.Onboarding.HelpTopics.RawMarkdown();
+        foreach (var forbidden in new[] { "10.20.", "wg0", "private key is", "DN-", "dnd_", "nftables", "51820" })
+            Xunit.Assert.DoesNotContain(forbidden, all);
+        Xunit.Assert.Contains("stay on the office computer", all);           // core message
+        Xunit.Assert.Contains("Windows Home cannot accept Remote Desktop", all);
+    }
+}

@@ -10,4 +10,9 @@
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Single source for in-app help and the customer manual (tools/build-manual.sh reads the same file). -->
+    <EmbeddedResource Include="Onboarding\help-topics.md" LogicalName="help-topics.md" />
+  </ItemGroup>
+
 </Project>
