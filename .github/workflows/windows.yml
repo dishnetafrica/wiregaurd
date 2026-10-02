@@ -5,6 +5,11 @@ on:
     paths: ["windows/**", ".github/workflows/windows.yml"]
   pull_request:
     paths: ["windows/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Publish the installer as GitHub Release client-vX.Y.Z (must match <Version> in windows/Directory.Build.props)"
+        required: true
 
 jobs:
   core:
@@ -21,6 +26,8 @@ jobs:
     # Full Windows build: self-contained app + official WireGuard MSI + Inno Setup installer.
     needs: core
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       WIREGUARD_MSI_URL: https://download.wireguard.com/windows-client/wireguard-amd64-0.5.3.msi
     steps:
@@ -57,3 +64,13 @@ jobs:
         with:
           name: DishNetSecureConnect-Setup
           path: windows/installer/output/*.exe
+      - name: Publish installer as a GitHub Release
+        if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: client-${{ inputs.version }}
+          name: DishNet Secure Connect ${{ inputs.version }} (Windows)
+          target_commitish: ${{ github.sha }}
+          body: |
+            Windows installer for DishNet Secure Connect. Unsigned pilot build: Windows SmartScreen will show "Windows protected your PC" — click **More info → Run anyway**. Requires 64-bit Windows 10 (1607+), Windows 11 or Windows Server 2016+.
+          files: windows/installer/output/*.exe
