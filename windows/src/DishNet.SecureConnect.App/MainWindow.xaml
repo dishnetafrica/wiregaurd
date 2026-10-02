@@ -91,6 +91,19 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Tally-first: the guided journey is the main call to action for staff computers -->
+                    <Border CornerRadius="8" Padding="16" Margin="0,0,0,16" Background="White" BorderBrush="{StaticResource BrandRed}" BorderThickness="1" Visibility="{Binding ShowClientTools, Converter={StaticResource Vis}}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" FontSize="15" Text="Use Tally from here"/>
+                            <TextBlock Style="{StaticResource MutedText}" FontSize="12.5" Margin="0,2,0,8" TextWrapping="Wrap" Text="Tally stays on your office computer. Connect, open Remote Desktop, sign in, and work in Tally as at the office."/>
+                            <TextBlock Text="{Binding JourneySummary}" FontSize="12.5" Margin="0,0,0,10"/>
+                            <WrapPanel>
+                                <Button Style="{StaticResource Primary}" Click="TallySetup_Click" Content="Set up Tally remote access" Margin="0,0,8,8"/>
+                                <Button Style="{StaticResource Secondary}" Click="Trouble_Click" Content="Something is not working…" Margin="0,0,8,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Guided checklist -->
                     <Border CornerRadius="8" Padding="16" Margin="0,0,0,16" Background="White" BorderBrush="{StaticResource Line}" BorderThickness="1" Visibility="{Binding ShowClientTools, Converter={StaticResource Vis}}">
                         <StackPanel>

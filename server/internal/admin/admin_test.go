@@ -18,6 +18,7 @@ import (
 
 	"github.com/dishnetafrica/wiregaurd/server/internal/auth"
 	"github.com/dishnetafrica/wiregaurd/server/internal/firewall"
+	"github.com/dishnetafrica/wiregaurd/server/internal/onboarding"
 	"github.com/dishnetafrica/wiregaurd/server/internal/provision"
 	"github.com/dishnetafrica/wiregaurd/server/internal/store"
 	"github.com/dishnetafrica/wiregaurd/server/internal/wg"
@@ -189,4 +190,59 @@ func TestOnboardingPermissionsAndIsolation(t *testing.T) {
 	if !strings.Contains(string(bodyL), "Next action") || !strings.Contains(string(bodyL), "Customer IT contact") {
 		t.Fatal("customer list lacks progress/next action")
 	}
+}
+
+func TestTallyReadinessFormAndClientConfig(t *testing.T) {
+	srv, svc := setup(t, nil)
+	ctx := context.Background()
+	a, _ := svc.CreateCustomer(ctx, provision.NewCustomer{Name: "Customer A", DefaultPorts: []int{3389}})
+	owner := client(t)
+	csrf := login(t, owner, srv.URL, "owner@dishnet.test")
+	form := func(extra url.Values) *http.Response {
+		v := url.Values{"csrf": {csrf}, "office_edition": {"pro"}, "readiness": {"ready"}, "concurrent_users": {"1"}, "concurrent_assessment": {"not_needed"}, "tally_company": {"Kampala Traders Ltd"}}
+		for k, vals := range extra {
+			v[k] = vals
+		}
+		res, _ := owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/onboarding", srv.URL, a.ID), v)
+		return res
+	}
+	// Acceptance cannot be recorded before all 8 pilot checks are ticked.
+	res := form(url.Values{"accepted": {"yes"}, "pilot_check": {"understands", "task"}})
+	if !strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatal("acceptance with 2/8 checks must be refused")
+	}
+	// Unknown check keys are refused.
+	if res := form(url.Values{"pilot_check": {"bogus"}}); !strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatal("unknown check must be refused")
+	}
+	// All 8 ticked + accepted: stored, page shows the company and the completed checklist.
+	all := url.Values{"accepted": {"yes"}}
+	for _, pc := range onboardingChecks() {
+		all.Add("pilot_check", pc)
+	}
+	if res := form(all); strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatalf("8/8 accepted refused: %s", res.Header.Get("Location"))
+	}
+	page, _ := owner.Get(fmt.Sprintf("%s/admin/customers/%d", srv.URL, a.ID))
+	body, _ := io.ReadAll(page.Body)
+	if !strings.Contains(string(body), "pilot checklist passed (8 of 8)") || !strings.Contains(string(body), "Kampala Traders Ltd") {
+		t.Fatal("page lacks completed checklist or company")
+	}
+	// The Tally company reaches a staff device's config, never an office device's.
+	code, _, _ := svc.CreateCode(ctx, provision.NewCode{CustomerID: a.ID, Role: store.RoleClient})
+	act, err := svc.Activate(ctx, provision.ActivateRequest{Code: code, PublicKey: "pA7m9Yv4R0uY5C3bb5N1v2xZ9m0KQ+ZxQ4bS4Rj4+xw=", DeviceName: "Laptop", OS: "Windows 11 Pro"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if act.Config.TallyCompany != "Kampala Traders Ltd" {
+		t.Fatalf("client config company: %q", act.Config.TallyCompany)
+	}
+}
+
+func onboardingChecks() []string {
+	var keys []string
+	for _, pc := range onboarding.PilotChecks {
+		keys = append(keys, pc.Key)
+	}
+	return keys
 }

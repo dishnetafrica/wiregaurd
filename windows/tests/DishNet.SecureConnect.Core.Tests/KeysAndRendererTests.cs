@@ -332,3 +332,98 @@ public class WindowsEditionTests
     public void Classifies(string id, string name, DishNet.SecureConnect.Core.Onboarding.EditionClass want) =>
         Xunit.Assert.Equal(want, DishNet.SecureConnect.Core.Onboarding.WindowsEdition.Classify(id, name));
 }
+
+public class TallyJourneyTests
+{
+    private static readonly DishNet.SecureConnect.Core.Onboarding.UserSettings Fresh = new();
+    private static readonly DishNet.SecureConnect.Core.Api.DeviceConfig Client = new()
+    {
+        DeviceId = 7, DeviceName = "Laptop", Role = "client", CustomerName = "Kampala Traders", TallyCompany = "Kampala Traders Ltd",
+        Access = new[] { new DishNet.SecureConnect.Core.Api.AccessTarget { Label = "Office PC", Target = "10.20.0.17/32", Ports = new[] { 3389 } } },
+    };
+    private static IReadOnlyList<DishNet.SecureConnect.Core.Onboarding.JourneyStep> Build(DishNet.SecureConnect.Core.Session.ConnectionState st, DishNet.SecureConnect.Core.Onboarding.ProbeResult pr, DishNet.SecureConnect.Core.Onboarding.UserSettings s)
+        => DishNet.SecureConnect.Core.Onboarding.TallyJourney.Build(true, Client, st, pr, s);
+
+    [Fact]
+    public void Verified_steps_come_only_from_facts_and_company_name_is_shown()
+    {
+        var steps = Build(DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, Fresh);
+        Xunit.Assert.Equal(8, steps.Count);
+        Xunit.Assert.Equal(3, steps.Count(s => s.Status == DishNet.SecureConnect.Core.Onboarding.StepStatus.Verified));
+        Xunit.Assert.Equal(0, steps.Count(s => s.Status == DishNet.SecureConnect.Core.Onboarding.StepStatus.Confirmed));
+        Xunit.Assert.Contains("\"Kampala Traders Ltd\"", steps.Single(s => s.Key == DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenCompany).Title);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenRdp, DishNet.SecureConnect.Core.Onboarding.TallyJourney.Current(steps)!.Key);
+    }
+
+    [Fact]
+    public void Confirmations_are_accepted_only_in_order_and_only_when_prerequisites_hold()
+    {
+        var j = DishNet.SecureConnect.Core.Onboarding.TallyJourney.Build(true, Client, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable, Fresh);
+        Xunit.Assert.False(DishNet.SecureConnect.Core.Onboarding.TallyJourney.CanConfirm(j, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenRdp)); // office unreachable: cannot claim RDP opened
+        j = Build(DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, Fresh);
+        Xunit.Assert.True(DishNet.SecureConnect.Core.Onboarding.TallyJourney.CanConfirm(j, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenRdp));
+        Xunit.Assert.False(DishNet.SecureConnect.Core.Onboarding.TallyJourney.CanConfirm(j, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyTask)); // cannot skip ahead
+        var now = DateTimeOffset.UtcNow;
+        var s = Fresh;
+        foreach (var k in new[] { DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenRdp, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeySignIn, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyOpenCompany, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyTask, DishNet.SecureConnect.Core.Onboarding.TallyJourney.KeyDisconnect })
+        {
+            Xunit.Assert.True(DishNet.SecureConnect.Core.Onboarding.TallyJourney.CanConfirm(Build(DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, s), k), k);
+            s = DishNet.SecureConnect.Core.Onboarding.TallyJourney.Confirm(s, k, now);
+        }
+        var done = Build(DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, s);
+        Xunit.Assert.True(DishNet.SecureConnect.Core.Onboarding.TallyJourney.AllDone(done));
+        Xunit.Assert.NotNull(s.PracticeCompletedAt);
+        Xunit.Assert.NotNull(s.ConfirmedTallyOpenedAt); // the main checklist's Tally step follows the journey
+        // Practising again clears only ticks; completion history stays.
+        var again = DishNet.SecureConnect.Core.Onboarding.TallyJourney.ResetPractice(s);
+        Xunit.Assert.Null(again.PracticeSignedInAt);
+        Xunit.Assert.NotNull(again.PracticeCompletedAt);
+    }
+}
+
+public class TroubleshooterTests
+{
+    private static readonly DishNet.SecureConnect.Core.Api.DeviceConfig Client = new()
+    {
+        Role = "client", Access = new[] { new DishNet.SecureConnect.Core.Api.AccessTarget { Label = "Office PC", Target = "10.20.0.17/32", Ports = new[] { 3389 } } },
+    };
+    private static DishNet.SecureConnect.Core.Onboarding.Diagnosis D(bool act, DishNet.SecureConnect.Core.Session.ConnectionState st, DishNet.SecureConnect.Core.Onboarding.ProbeResult pr, DishNet.SecureConnect.Core.Onboarding.TroubleshootAnswers? a = null)
+        => DishNet.SecureConnect.Core.Onboarding.Troubleshooter.Diagnose(act, Client, st, pr, a ?? new());
+
+    [Fact]
+    public void Observable_layers_are_decided_without_asking()
+    {
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.Activation, D(false, DishNet.SecureConnect.Core.Session.ConnectionState.NotActivated, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked).Layer);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.Activation, D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Revoked, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked).Layer);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.Vpn, D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connecting, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked).Layer);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.Vpn, D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Disconnected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.NotChecked).Layer);
+        var office = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Unreachable);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.OfficePc, office.Layer);
+        Xunit.Assert.Contains("Allow Remote Desktop", office.WhatToDo);
+        Xunit.Assert.False(office.NeedsAnswer);
+        var none = DishNet.SecureConnect.Core.Onboarding.Troubleshooter.Diagnose(true, new DishNet.SecureConnect.Core.Api.DeviceConfig { Role = "client" }, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new());
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.OfficePc, none.Layer);
+    }
+
+    [Fact]
+    public void Unobservable_layers_are_asked_in_order_and_handshake_never_implies_tally()
+    {
+        var reach = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable);
+        Xunit.Assert.True(reach.NeedsAnswer);
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.Troubleshooter.QRdp, reach.NextQuestion);
+        var noRdp = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new() { RdpWindowOpened = false });
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.RemoteDesktop, noRdp.Layer);
+        Xunit.Assert.Contains("mstsc", noRdp.WhatToDo);
+        var askSign = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new() { RdpWindowOpened = true });
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.Troubleshooter.QSignIn, askSign.NextQuestion);
+        var badSign = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new() { RdpWindowOpened = true, SignInWorked = false });
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.WindowsSignIn, badSign.Layer);
+        Xunit.Assert.DoesNotContain("DishNet can reset", badSign.WhatToDo);
+        Xunit.Assert.Contains("Never send passwords", badSign.WhatToDo);
+        var tally = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new() { RdpWindowOpened = true, SignInWorked = true, TallyWorked = false });
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.Tally, tally.Layer);
+        Xunit.Assert.Equal("Your Tally provider", tally.WhoFixes);
+        var ok = D(true, DishNet.SecureConnect.Core.Session.ConnectionState.Connected, DishNet.SecureConnect.Core.Onboarding.ProbeResult.Reachable, new() { RdpWindowOpened = true, SignInWorked = true, TallyWorked = true });
+        Xunit.Assert.Equal(DishNet.SecureConnect.Core.Onboarding.FailureLayer.None, ok.Layer);
+    }
+}

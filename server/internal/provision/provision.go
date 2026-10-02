@@ -536,6 +536,7 @@ type DeviceConfig struct {
 	Plan           string         `json:"plan"`            // trial | paid | unlimited
 	SupportContact string         `json:"support_contact"` // e.g. "WhatsApp 0705 993 348"
 	ExpiresAt      string         `json:"subscription_expires_at,omitempty"`
+	TallyCompany   string         `json:"tally_company,omitempty"` // clients: the Tally company to open (entered by DishNet during onboarding)
 }
 
 type AccessTarget struct {
@@ -634,6 +635,9 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 		// 10.20.0.1` as a connectivity check; the hub firewall allows only
 		// ICMP echo to itself, nothing else.
 		if d.Role == store.RoleClient {
+			if ob, err := tx.GetOnboarding(c.ID); err == nil {
+				cfg.TallyCompany = ob.TallyCompany
+			}
 			for _, h := range s.cfg.HubAddresses {
 				allowed = append([]netip.Prefix{netip.PrefixFrom(h, 32)}, allowed...)
 			}

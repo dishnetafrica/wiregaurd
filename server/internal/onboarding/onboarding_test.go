@@ -16,7 +16,7 @@ func TestProgressDerivation(t *testing.T) {
 
 	// Nothing registered: next action is to confirm the Windows edition (support), nothing claimed as done except the record.
 	p := Compute(base)
-	if p.Done != 2 || !strings.Contains(p.NextAction, "Windows edition") || p.NextOwner != "DishNet support" {
+	if p.Done != 3 || !strings.Contains(p.NextAction, "Windows edition") || p.NextOwner != "DishNet support" {
 		t.Fatalf("fresh: done=%d next=%q owner=%q", p.Done, p.NextAction, p.NextOwner)
 	}
 
@@ -50,7 +50,11 @@ func TestProgressDerivation(t *testing.T) {
 	if readiness.Status != Pending || readiness.Source != SourceEntered {
 		t.Fatalf("readiness must stay pending/entered: %+v", readiness)
 	}
-	if !strings.Contains(p.NextAction, "readiness") {
+	if !strings.Contains(p.NextAction, "Tally company") {
+		t.Fatalf("next should be the Tally company (then readiness), got %q", p.NextAction)
+	}
+	in.Onboarding.TallyCompany = "Kishan Bhai Ltd"
+	if p = Compute(in); !strings.Contains(p.NextAction, "readiness") {
 		t.Fatalf("next should be readiness check, got %q", p.NextAction)
 	}
 	// Windows Home is flagged as attention with the recommended fix.
@@ -60,7 +64,7 @@ func TestProgressDerivation(t *testing.T) {
 		t.Fatalf("home: %q", p.NextAction)
 	}
 	// Everything entered: complete.
-	in.Onboarding = store.Onboarding{OfficeEdition: "pro", Readiness: "ready", AcceptanceAt: now, AcceptanceBy: "bhavin", HandoverAt: now, HandoverBy: "bhavin"}
+	in.Onboarding = store.Onboarding{OfficeEdition: "pro", Readiness: "ready", AcceptanceAt: now, AcceptanceBy: "bhavin", HandoverAt: now, HandoverBy: "bhavin", TallyCompany: "Kishan Bhai Ltd", ConcurrentUsers: 1}
 	p = Compute(in)
 	if p.Done != p.Total || !strings.HasPrefix(p.NextAction, "Onboarding complete") {
 		t.Fatalf("complete: %d/%d %q", p.Done, p.Total, p.NextAction)
@@ -89,5 +93,51 @@ func TestEditionVerifiedFromOfficeApp(t *testing.T) {
 		if it.Key == "edition" && (it.Status != Done || it.Source != SourceSystem) {
 			t.Fatalf("pro from app: %+v", it)
 		}
+	}
+}
+
+func TestTallyPilotChecklistAndConcurrentAssessment(t *testing.T) {
+	now := time.Now()
+	c := store.Customer{ID: 1, Name: "X", Plan: store.PlanTrial}
+	ob := store.Onboarding{OfficeEdition: "pro", Readiness: "ready", ConcurrentUsers: 3, ConcurrentAssessment: "needed", PilotChecks: []string{"understands", "vpn_reachable"}}
+	p := Compute(Input{Customer: c, Onboarding: ob, Now: now})
+	items := map[string]Item{}
+	for _, it := range p.Items {
+		items[it.Key] = it
+	}
+	if items["concurrent"].Status != Attention || !strings.Contains(items["concurrent"].Detail, "Windows Server") {
+		t.Fatalf("3 concurrent users without assessment must be attention: %+v", items["concurrent"])
+	}
+	if items["acceptance"].Status != Pending || !strings.Contains(items["acceptance"].Title, "2 of 8") {
+		t.Fatalf("partial checklist: %+v", items["acceptance"])
+	}
+	if items["tally_company"].Status != Pending {
+		t.Fatalf("company missing should be pending: %+v", items["tally_company"])
+	}
+	// All eight ticked but acceptance not recorded: still pending, asks to record.
+	ob.PilotChecks = nil
+	for _, pc := range PilotChecks {
+		ob.PilotChecks = append(ob.PilotChecks, pc.Key)
+	}
+	ob.ConcurrentAssessment, ob.TallyCompany = "assessed", "Kampala Traders Ltd"
+	p = Compute(Input{Customer: c, Onboarding: ob, Now: now})
+	for _, it := range p.Items {
+		switch it.Key {
+		case "acceptance":
+			if it.Status != Done && !strings.Contains(it.Title, "record acceptance") {
+				t.Fatalf("8/8 unrecorded: %+v", it)
+			}
+		case "concurrent":
+			if it.Status != Done {
+				t.Fatalf("assessed must be done: %+v", it)
+			}
+		case "tally_company":
+			if it.Status != Done || !strings.Contains(it.Detail, "Kampala Traders Ltd") {
+				t.Fatalf("company: %+v", it)
+			}
+		}
+	}
+	if !AllChecksPassed(ob.PilotChecks) || AllChecksPassed([]string{"task"}) {
+		t.Fatal("AllChecksPassed wrong")
 	}
 }

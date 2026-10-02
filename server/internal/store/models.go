@@ -257,7 +257,12 @@ type Onboarding struct {
 	AcceptanceBy  string
 	HandoverAt    time.Time
 	HandoverBy    string
-	UpdatedAt     time.Time
+	// Tally remote-access readiness (entered by DishNet staff).
+	TallyCompany         string   // the Tally company the customer should open; shown in the staff app
+	ConcurrentUsers      int      // how many staff need Tally at the same time (1 = standard Windows Pro)
+	ConcurrentAssessment string   // not_needed | needed | assessed  (Windows Server / RDS licensing assessment)
+	PilotChecks          []string // keys of the 8 pilot acceptance checks ticked so far
+	UpdatedAt            time.Time
 }
 
 type SupportNote struct {

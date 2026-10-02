@@ -8,6 +8,55 @@ publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
+## Server v0.6.0 / client 0.4.0 — 2026-10-02 (remote Tally as the main journey)
+
+The product now teaches one thing: doing Tally accounting from another
+location, with DishNet Secure Connect behind the scenes.
+
+**Windows client 0.4.0**
+- **Set up Tally remote access**: a guided, eight-step journey on the staff
+  laptop (activate → connect → office reachable → open Remote Desktop → sign
+  in → open the recorded Tally company → one simple task → finish properly).
+  Software-verified steps show as checked; the customer confirms the rest,
+  only in order and only when the prerequisites are verified. Includes a
+  **practice run** with *Practise again*.
+- **Troubleshooting assistant** (*Something is not working…*): decides from
+  what the app can observe which of six layers fails (activation, DishNet
+  connection, office computer, Remote Desktop, Windows sign-in, Tally) and
+  asks at most three questions for the rest. Each result names who fixes it.
+  A handshake never implies Tally works.
+- Help centre and manual rewritten Tally-first; simultaneous-users limitation
+  explained (Windows Server / RDS assessment needed).
+- Consent gate, Windows Home handling, activation, key protection and in-place
+  update unchanged. 0.3.x apps update in place.
+
+**Server v0.6.0**
+- Dashboard: **Remote Tally pilot checklist** (8 checks); acceptance can be
+  recorded only when all 8 are ticked. Tally company name (sent to staff apps
+  in their config), staff needing Tally simultaneously, and the Windows
+  Server / RDS assessment status, with an attention item until assessed.
+- Migration `0005_tally`: four additive columns on `customer_onboarding`.
+  No existing rows or tables are altered.
+- `/api/v1/device/config` gains `tally_company` for client devices.
+
+Verified before release: `go vet`, `go test -race ./...` (7 packages, 39
+tests), `dotnet test` (65 tests), solution build, manual rebuilt (HTML +
+PDF), dashboard screenshot captured from a seeded dry-run server.
+
+### Deploy (hub, as root)
+
+```bash
+cd /root/wiregaurd && git pull
+sudo bash deploy/update-server.sh v0.6.0
+sudo bash deploy/fetch-installer.sh client-v0.4.0
+curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.4.0"
+```
+
+### Rollback
+
+`sudo bash deploy/update-server.sh v0.5.1` (the 0005 columns stay, unused
+by v0.5.1) and `sudo bash deploy/fetch-installer.sh client-v0.3.1`.
+
 ## Server v0.5.1 / client 0.3.1 — 2026-10-02 (guided onboarding)
 
 **Server**

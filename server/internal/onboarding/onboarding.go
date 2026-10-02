@@ -40,6 +40,50 @@ type Progress struct {
 	Readiness  string // not_checked | ready | needs_attention (admin-entered)
 }
 
+// PilotCheck is one of the eight acceptance checks every pilot customer must
+// pass with a real staff user before DishNet calls the setup done.
+type PilotCheck struct{ Key, Label string }
+
+var PilotChecks = []PilotCheck{
+	{"understands", "Customer understands what DishNet Secure Connect does (Tally stays at the office; Remote Desktop shows it)"},
+	{"office_consent", "Office PC configured with the owner's consent (Allow clicked by owner/operator)"},
+	{"laptop_activated", "Customer activated the laptop with its own device code"},
+	{"vpn_reachable", "VPN connects and the office PC is reachable (verified in the app)"},
+	{"rdp_unassisted", "Customer opened Remote Desktop without technical assistance"},
+	{"signin_company", "Customer signed in and opened the correct Tally company"},
+	{"task", "Customer completed a simple, authorised accounting task"},
+	{"disconnect_reconnect", "Customer disconnected properly and knows how to reconnect"},
+}
+
+func HasCheck(checks []string, key string) bool {
+	for _, c := range checks {
+		if c == key {
+			return true
+		}
+	}
+	return false
+}
+
+// AllChecksPassed reports whether every pilot check has been ticked.
+func AllChecksPassed(checks []string) bool {
+	for _, c := range PilotChecks {
+		if !HasCheck(checks, c.Key) {
+			return false
+		}
+	}
+	return true
+}
+
+func countChecks(checks []string) int {
+	n := 0
+	for _, c := range PilotChecks {
+		if HasCheck(checks, c.Key) {
+			n++
+		}
+	}
+	return n
+}
+
 // OnlineWindow mirrors the dashboard's definition of "online".
 const OnlineWindow = 3 * time.Minute
 
@@ -147,6 +191,21 @@ func Compute(in Input) Progress {
 		add(Item{Key: "clients", Title: "Staff computers registered", Detail: itoa(len(clients)) + " registered, " + itoa(online) + " online now", Status: Done, Source: SourceSystem, Owner: "Customer"})
 	}
 
+	// 7b. Tally specifics (entered): company to open, simultaneous-users assessment.
+	if in.Onboarding.TallyCompany != "" {
+		add(Item{Key: "tally_company", Title: "Tally company recorded", Detail: "Staff app tells users to open \"" + in.Onboarding.TallyCompany + "\".", Status: Done, Source: SourceEntered, Owner: "DishNet support"})
+	} else {
+		add(Item{Key: "tally_company", Title: "Record the Tally company name", Detail: "Ask the customer which Tally company staff should open; the staff app shows it in the guided steps.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
+	}
+	switch {
+	case in.Onboarding.ConcurrentUsers <= 1:
+		add(Item{Key: "concurrent", Title: "One user at a time (standard Windows Pro)", Detail: "Remote Desktop on a normal PC serves one interactive user. Fine for this customer as entered.", Status: Done, Source: SourceEntered, Owner: "DishNet sales"})
+	case in.Onboarding.ConcurrentAssessment == "assessed":
+		add(Item{Key: "concurrent", Title: "Simultaneous users: assessed", Detail: itoa(in.Onboarding.ConcurrentUsers) + " users at once. Windows Server / Remote Desktop Services, licensing and the customer's Tally setup were assessed; see notes.", Status: Done, Source: SourceEntered, Owner: "DishNet sales"})
+	default:
+		add(Item{Key: "concurrent", Title: "Simultaneous users need an assessment", Detail: itoa(in.Onboarding.ConcurrentUsers) + " staff need Tally at the same time. A standard Windows Pro PC cannot do this: assess Windows Server / Remote Desktop Services, licensing and the Tally configuration before promising it.", Status: Attention, Source: SourceEntered, Owner: "DishNet sales"})
+	}
+
 	// 8. Readiness + acceptance (entered).
 	switch in.Onboarding.Readiness {
 	case "ready":
@@ -156,10 +215,14 @@ func Compute(in Input) Progress {
 	default:
 		add(Item{Key: "readiness", Title: "Remote Desktop / Tally readiness: Not checked", Detail: "Support verifies Remote Desktop sign-in and Tally with the customer, then records the result here.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
 	}
-	if !in.Onboarding.AcceptanceAt.IsZero() {
-		add(Item{Key: "acceptance", Title: "Acceptance test passed", Detail: "Recorded by " + in.Onboarding.AcceptanceBy + " on " + in.Onboarding.AcceptanceAt.Format("2006-01-02"), Status: Done, Source: SourceEntered, Owner: "DishNet support"})
-	} else {
-		add(Item{Key: "acceptance", Title: "Acceptance test with the customer", Detail: "Customer signs in over Remote Desktop and opens Tally while support watches.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
+	n := countChecks(in.Onboarding.PilotChecks)
+	switch {
+	case !in.Onboarding.AcceptanceAt.IsZero():
+		add(Item{Key: "acceptance", Title: "Remote Tally pilot checklist passed (" + itoa(n) + " of " + itoa(len(PilotChecks)) + ")", Detail: "Recorded by " + in.Onboarding.AcceptanceBy + " on " + in.Onboarding.AcceptanceAt.Format("2006-01-02"), Status: Done, Source: SourceEntered, Owner: "DishNet support"})
+	case n == len(PilotChecks):
+		add(Item{Key: "acceptance", Title: "All 8 pilot checks ticked — record acceptance", Detail: "Tick \"Acceptance test passed\" to close the pilot and confirm the setup with the customer.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
+	default:
+		add(Item{Key: "acceptance", Title: "Remote Tally pilot checklist: " + itoa(n) + " of " + itoa(len(PilotChecks)), Detail: "Run the 8-point acceptance test with a real staff user. A VPN handshake alone is never acceptance.", Status: Pending, Source: SourceEntered, Owner: "DishNet support"})
 	}
 	if !in.Onboarding.HandoverAt.IsZero() {
 		add(Item{Key: "handover", Title: "Handover done", Detail: "Manual and support contact given; recorded by " + in.Onboarding.HandoverBy, Status: Done, Source: SourceEntered, Owner: "DishNet support"})

@@ -776,13 +776,17 @@ func (t *Tx) GetOnboarding(customerID int64) (Onboarding, error) {
 	var o Onboarding
 	var acc, hand sql.NullString
 	var updated string
-	err := t.tx.QueryRowContext(t.ctx, `SELECT customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, updated_at FROM customer_onboarding WHERE customer_id=?`, customerID).
-		Scan(&o.CustomerID, &o.OfficeEdition, &o.Readiness, &o.ReadinessNote, &acc, &o.AcceptanceBy, &hand, &o.HandoverBy, &updated)
+	var checks string
+	err := t.tx.QueryRowContext(t.ctx, `SELECT customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, tally_company, concurrent_users, concurrent_assessment, pilot_checks, updated_at FROM customer_onboarding WHERE customer_id=?`, customerID).
+		Scan(&o.CustomerID, &o.OfficeEdition, &o.Readiness, &o.ReadinessNote, &acc, &o.AcceptanceBy, &hand, &o.HandoverBy, &o.TallyCompany, &o.ConcurrentUsers, &o.ConcurrentAssessment, &checks, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Onboarding{CustomerID: customerID, OfficeEdition: "unknown", Readiness: "not_checked"}, nil
+		return Onboarding{CustomerID: customerID, OfficeEdition: "unknown", Readiness: "not_checked", ConcurrentUsers: 1, ConcurrentAssessment: "not_needed"}, nil
 	}
 	if err != nil {
 		return o, err
+	}
+	if checks != "" {
+		o.PilotChecks = strings.Split(checks, ",")
 	}
 	o.AcceptanceAt, o.HandoverAt = ParseTime(acc), ParseTime(hand)
 	o.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
@@ -790,11 +794,19 @@ func (t *Tx) GetOnboarding(customerID int64) (Onboarding, error) {
 }
 
 func (t *Tx) UpsertOnboarding(o Onboarding) error {
-	_, err := t.tx.ExecContext(t.ctx, `INSERT INTO customer_onboarding(customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?)
+	if o.ConcurrentUsers < 1 {
+		o.ConcurrentUsers = 1
+	}
+	if o.ConcurrentAssessment == "" {
+		o.ConcurrentAssessment = "not_needed"
+	}
+	_, err := t.tx.ExecContext(t.ctx, `INSERT INTO customer_onboarding(customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, tally_company, concurrent_users, concurrent_assessment, pilot_checks, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(customer_id) DO UPDATE SET office_edition=excluded.office_edition, readiness=excluded.readiness, readiness_note=excluded.readiness_note,
-		acceptance_at=excluded.acceptance_at, acceptance_by=excluded.acceptance_by, handover_at=excluded.handover_at, handover_by=excluded.handover_by, updated_at=excluded.updated_at`,
-		o.CustomerID, o.OfficeEdition, o.Readiness, o.ReadinessNote, nullTime(o.AcceptanceAt), o.AcceptanceBy, nullTime(o.HandoverAt), o.HandoverBy, Now())
+		acceptance_at=excluded.acceptance_at, acceptance_by=excluded.acceptance_by, handover_at=excluded.handover_at, handover_by=excluded.handover_by,
+		tally_company=excluded.tally_company, concurrent_users=excluded.concurrent_users, concurrent_assessment=excluded.concurrent_assessment, pilot_checks=excluded.pilot_checks, updated_at=excluded.updated_at`,
+		o.CustomerID, o.OfficeEdition, o.Readiness, o.ReadinessNote, nullTime(o.AcceptanceAt), o.AcceptanceBy, nullTime(o.HandoverAt), o.HandoverBy,
+		o.TallyCompany, o.ConcurrentUsers, o.ConcurrentAssessment, strings.Join(o.PilotChecks, ","), Now())
 	return err
 }
 

@@ -68,8 +68,16 @@
       <div><label>Remote Desktop / Tally readiness (checked by support)</label>
         <select name="readiness"><option value="not_checked" {{if eq .Onboarding.Readiness "not_checked"}}selected{{end}}>Not checked</option><option value="ready" {{if eq .Onboarding.Readiness "ready"}}selected{{end}}>Ready</option><option value="needs_attention" {{if eq .Onboarding.Readiness "needs_attention"}}selected{{end}}>Needs attention</option></select></div>
       <div><label>Readiness note (no passwords)</label><input name="readiness_note" value="{{.Onboarding.ReadinessNote}}" maxlength="300"></div>
+      <div><label>Tally company staff should open (shown in the staff app)</label><input name="tally_company" value="{{.Onboarding.TallyCompany}}" maxlength="80" placeholder="e.g. Kampala Traders Ltd"></div>
+      <div><label>Staff needing Tally at the same time</label><input name="concurrent_users" type="number" min="1" max="500" value="{{.Onboarding.ConcurrentUsers}}"></div>
+      <div><label>Simultaneous-users assessment (Windows Server / RDS licensing)</label>
+        <select name="concurrent_assessment"><option value="not_needed" {{if eq .Onboarding.ConcurrentAssessment "not_needed"}}selected{{end}}>Not needed (one user at a time)</option><option value="needed" {{if eq .Onboarding.ConcurrentAssessment "needed"}}selected{{end}}>Needed — not done yet</option><option value="assessed" {{if eq .Onboarding.ConcurrentAssessment "assessed"}}selected{{end}}>Assessed (see notes)</option></select></div>
+    </div>
+    <h3 style="margin:16px 0 6px">Remote Tally pilot checklist <span class="muted" style="font-weight:normal;font-size:13px">— tick each point as the customer demonstrates it with a real staff user. Acceptance can be recorded only when all 8 are ticked.</span></h3>
+    {{$ob := .Onboarding}}{{range .PilotChecks}}<label style="display:block;margin:3px 0"><input type="checkbox" name="pilot_check" value="{{.Key}}" {{if hasCheck $ob.PilotChecks .Key}}checked{{end}}> {{.Label}}</label>{{end}}
+    <div class="grid" style="margin-top:12px">
       <div><label>Record milestones</label>
-        <label style="display:inline"><input type="checkbox" name="accepted" value="yes" {{if not .Onboarding.AcceptanceAt.IsZero}}checked disabled{{end}}> Acceptance test passed{{if not .Onboarding.AcceptanceAt.IsZero}} ({{date .Onboarding.AcceptanceAt}}){{end}}</label><br>
+        <label style="display:inline"><input type="checkbox" name="accepted" value="yes" {{if not .Onboarding.AcceptanceAt.IsZero}}checked disabled{{end}}> Acceptance test passed (all 8 checks){{if not .Onboarding.AcceptanceAt.IsZero}} ({{date .Onboarding.AcceptanceAt}}){{end}}</label><br>
         <label style="display:inline"><input type="checkbox" name="handover" value="yes" {{if not .Onboarding.HandoverAt.IsZero}}checked disabled{{end}}> Handover done{{if not .Onboarding.HandoverAt.IsZero}} ({{date .Onboarding.HandoverAt}}){{end}}</label></div>
     </div>
     <button class="small">Save onboarding</button>

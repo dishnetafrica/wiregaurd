@@ -10,5 +10,7 @@ public partial class MainWindow : Window
     private void HowItWorks_Click(object sender, RoutedEventArgs e) => Vm.ShowTour(this);
     private void Help_Click(object sender, RoutedEventArgs e) => Vm.ShowHelp(this);
     private void Contact_Click(object sender, RoutedEventArgs e) => Vm.ContactSupport(this);
+    private void TallySetup_Click(object sender, RoutedEventArgs e) => Vm.ShowTallySetup(this);
+    private void Trouble_Click(object sender, RoutedEventArgs e) => Vm.ShowTroubleshooter(this);
     private void DeclineGateway_Click(object sender, RoutedEventArgs e) => Vm.DeclineGateway();
 }

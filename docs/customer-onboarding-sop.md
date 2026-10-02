@@ -45,6 +45,8 @@ R = does the work · A = accountable · C = consulted · I = informed
    - Which computer runs Tally? **Which Windows edition** (Settings → System → About)? *Home = not supported as the office computer; recommend upgrading that PC to Pro, or another Pro PC.*
    - Does Tally work on it today, locally?
    - How many staff computers need access? (device limit)
+   - **How many staff need Tally at the same time?** One at a time = standard Windows Pro. More than one = record it in the dashboard (*Staff needing Tally at the same time*) and set the assessment to *Needed*; do **not** promise simultaneous access until Windows Server / RDS licensing and the Tally configuration have been assessed.
+   - **Which Tally company** should staff open? Record it in the dashboard; the staff app shows it in the guided steps.
    - Who is the IT contact, and can they keep the office PC on and online?
 3. State the limitations honestly: one person at a time on a normal Windows
    PC; Windows Server needed for simultaneous users; DishNet does not
@@ -117,20 +119,30 @@ connected); checklist on the device shows the office computer reachable.
 
 ## Stage 6 — Acceptance test (TS with ST and CIT)
 
-Done once per customer with at least one real staff user, on the phone or on site:
+Done once per customer with at least one real staff user, on the phone or on
+site. The ST uses **Set up Tally remote access** in the app (the guided
+practice run); TS watches and ticks the **Remote Tally pilot checklist** on
+the customer page. The dashboard refuses to record acceptance until all
+eight are ticked.
 
-1. ST clicks **Open Remote Desktop**, signs in with their own Windows account
-   for the office PC. TS never asks for or notes the password.
-2. ST opens Tally on the office desktop and performs a normal task (open the
-   company, view a report).
-3. ST ticks **✔ Remote Desktop worked** and **✔ Tally opened** in the app.
-4. ST disconnects properly (close Tally company → close Remote Desktop →
-   Disconnect) and reconnects once to prove repeatability.
-5. TS records in the dashboard: **Readiness = Ready** (or *Needs attention*
-   with the reason) and ticks **Acceptance test passed**.
+| # | Check | How TS verifies it |
+|---|---|---|
+| 1 | Customer understands what DishNet Secure Connect does | Customer explains in their own words: Tally stays at the office; Remote Desktop shows it |
+| 2 | Office PC configured with the owner's consent | Owner/operator clicked *Allow*; gateway online in the dashboard |
+| 3 | Customer activated the laptop with its own device code | Device appears in the dashboard under the customer |
+| 4 | VPN connects and the office PC is reachable | App step 3 shows green ✔ (verified by the app, not by TS) |
+| 5 | Customer opens Remote Desktop without technical assistance | TS does not touch the keyboard or dictate clicks |
+| 6 | Customer signs in and opens the correct Tally company | The company recorded in the dashboard appears in Tally. TS never asks for the password |
+| 7 | Customer completes a simple, authorised accounting task | For example views Day Book or a report |
+| 8 | Customer disconnects and knows how to reconnect | Close company → close Remote Desktop → Disconnect; then Connect → Open Remote Desktop again |
 
-**Acceptance:** readiness Ready + acceptance recorded. **A VPN handshake
-alone is never acceptance.**
+TS then records **Readiness = Ready** (or *Needs attention* with the
+reason) and ticks **Acceptance test passed**. The measure of success is
+that a non-technical customer completes the whole journey with minimal
+help from DishNet; note in the support notes how much help was needed.
+
+**Acceptance:** all 8 checks ticked + readiness Ready + acceptance recorded.
+**A VPN handshake alone is never acceptance.**
 
 **Escalate** if: Remote Desktop cannot connect although the office PC is
 online (check Allow was clicked and the policy exists), or sign-in fails

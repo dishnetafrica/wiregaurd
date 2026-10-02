@@ -167,10 +167,31 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     // ---------- actions ----------
 
-    public async Task RefreshAsync()
+    /// <summary>Snapshot of the guided Tally journey; changes are announced through JourneyVersion.</summary>
+    public IReadOnlyList<JourneyStep> JourneySteps { get; private set; } = Array.Empty<JourneyStep>();
+    private int _journeyVersion;
+    public int JourneyVersion { get => _journeyVersion; private set => Set(ref _journeyVersion, value); }
+    public bool PracticeDone => _settings.Current.PracticeCompletedAt is not null;
+    public string JourneySummary => IsGateway ? "" : PracticeDone
+        ? "Practice run done. Daily use: Connect → Open Remote Desktop → sign in → Tally."
+        : $"{JourneySteps.Count(s => s.IsDone)} of {JourneySteps.Count} steps done — open the guide to continue.";
+    public string ObservedSummary
+    {
+        get
+        {
+            var act = IsActivated ? "activated" : "NOT activated";
+            var probe = _session.LastProbe switch { ProbeResult.Reachable => "office computer answers", ProbeResult.Unreachable => "office computer NOT answering", _ => "office computer not checked yet" };
+            return $"This laptop: {act} · Connection: {StateTitle} · {probe}" + (OfficeHost.Length > 0 ? $" ({OfficeHost})" : "");
+        }
+    }
+
+    public Diagnosis Diagnose(TroubleshootAnswers a) => Troubleshooter.Diagnose(IsActivated, _session.Config, State, _session.LastProbe, a);
+
+    public async Task RefreshAsync(bool force = false)
     {
         try
         {
+            if (force) _lastProbeAt = DateTimeOffset.MinValue;
             State = await _session.GetStateAsync(_cts.Token);
             var id = _session.Identity;
             var cfg = _session.Config;
@@ -192,6 +213,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Steps.Clear();
             foreach (var s in steps) Steps.Add(s);
             NextAction = Checklist.NextAction(steps);
+            JourneySteps = TallyJourney.Build(IsActivated, cfg, State, _session.LastProbe, _settings.Current);
+            JourneyVersion++;
+            Notify(nameof(JourneySummary), nameof(PracticeDone), nameof(ObservedSummary));
             Notify(nameof(ShowGatewayConsent), nameof(ShowClientTools), nameof(GatewayConsentGiven), nameof(GatewayConsentText), nameof(HasHomeWarning), nameof(HomeWarning));
             AllowGatewayCommand.Raise(); OpenRemoteDesktopCommand.Raise(); ConfirmRdpCommand.Raise(); ConfirmTallyCommand.Raise();
             OfficeTargets = cfg is null ? "" : IsGateway
@@ -310,6 +334,34 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _settings.Update(s => key == Checklist.KeyRdpInstructions ? s with { ConfirmedRdpInstructionsAt = DateTimeOffset.UtcNow } : s with { ConfirmedTallyOpenedAt = DateTimeOffset.UtcNow });
         await RefreshAsync();
     }
+
+    public async Task RunJourneyActionAsync(string action)
+    {
+        switch (action)
+        {
+            case TallyJourney.ActionConnect: await ConnectAsync(); break;
+            case TallyJourney.ActionOpenRdp: await OpenRemoteDesktopAsync(); break;
+            case TallyJourney.ActionDisconnect: await DisconnectAsync(); break;
+        }
+    }
+
+    /// <summary>Accepts a customer confirmation only for the step that is due (Core decides), then re-derives everything.</summary>
+    public async Task ConfirmJourneyStepAsync(string key)
+    {
+        if (!TallyJourney.CanConfirm(JourneySteps, key)) { Info = "Finish the earlier steps first."; return; }
+        _settings.Update(s => TallyJourney.Confirm(s, key, DateTimeOffset.UtcNow));
+        _log.Info("journey step confirmed by customer: " + key);
+        await RefreshAsync();
+    }
+
+    public async Task ResetPracticeAsync()
+    {
+        _settings.Update(TallyJourney.ResetPractice);
+        await RefreshAsync();
+    }
+
+    public void ShowTallySetup(System.Windows.Window owner) => new TallySetupWindow(this) { Owner = owner }.Show();
+    public void ShowTroubleshooter(System.Windows.Window owner) => new TroubleshootWindow(this) { Owner = owner }.Show();
 
     public void ShowTour(System.Windows.Window owner)
     {

@@ -70,6 +70,7 @@ func New(svc *provision.Service, log *slog.Logger, opt Options) (*Handler, error
 			}
 			return t.Format("2006-01-02")
 		},
+		"hasCheck": onboarding.HasCheck,
 		"date": func(t time.Time) string {
 			if t.IsZero() {
 				return "—"
@@ -472,6 +473,7 @@ func (h *Handler) customer(w http.ResponseWriter, r *http.Request) {
 		data["Capacity"] = capacityOf(c)
 		data["Progress"] = h.progress(tx, c)
 		data["Onboarding"], _ = tx.GetOnboarding(id)
+		data["PilotChecks"] = onboarding.PilotChecks
 		data["Notes"], _ = tx.ListSupportNotes(id, 20)
 		data["GuideURL"] = h.publicURL + "/guide"
 		return nil
@@ -737,12 +739,22 @@ func (h *Handler) updateOnboarding(w http.ResponseWriter, r *http.Request) {
 	err := h.svc.UpdateOnboarding(r.Context(), id, provision.OnboardingUpdate{
 		OfficeEdition: r.FormValue("office_edition"), Readiness: r.FormValue("readiness"), ReadinessNote: r.FormValue("readiness_note"),
 		MarkAccepted: r.FormValue("accepted") == "yes", MarkHandover: r.FormValue("handover") == "yes",
+		TallyCompany: r.FormValue("tally_company"), ConcurrentUsers: atoiDefault(r.FormValue("concurrent_users"), 1), ConcurrentAssessment: r.FormValue("concurrent_assessment"),
+		PilotChecks: r.Form["pilot_check"],
 	}, s.admin.Email)
 	if err != nil {
 		redirectErr(w, r, back, err)
 		return
 	}
 	redirectFlash(w, r, back, "Onboarding updated")
+}
+
+func atoiDefault(s string, def int) int {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return def
+	}
+	return n
 }
 
 func (h *Handler) addNote(w http.ResponseWriter, r *http.Request) {

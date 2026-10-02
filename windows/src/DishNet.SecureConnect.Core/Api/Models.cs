@@ -22,6 +22,8 @@ public sealed record DeviceConfig
     [JsonPropertyName("plan")] public string Plan { get; init; } = "";
     [JsonPropertyName("support_contact")] public string SupportContact { get; init; } = "";
     [JsonPropertyName("subscription_expires_at")] public string? SubscriptionExpiresAt { get; init; }
+    /// <summary>Name of the Tally company the customer should open (entered by DishNet during onboarding; may be empty).</summary>
+    [JsonPropertyName("tally_company")] public string TallyCompany { get; init; } = "";
 
     public bool IsGateway => string.Equals(Role, "gateway", StringComparison.OrdinalIgnoreCase);
 }

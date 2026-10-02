@@ -1,4 +1,4 @@
-# Guided onboarding release — server v0.5.1 / client 0.3.1
+# Guided onboarding release — server v0.6.0 / client 0.4.0
 
 Date: 2026-10-02. Companion to `onboarding-plan.md` (plan), `customer-onboarding-sop.md`, `admin-support-runbook.md`.
 
@@ -13,6 +13,20 @@ Date: 2026-10-02. Companion to `onboarding-plan.md` (plan), `customer-onboarding
 | 5 SOP + runbook | Roles, RACI, stage-by-stage acceptance checks, escalation, handover checklist; support runbook with symptom→cause→action, hub health, recovery | `docs/customer-onboarding-sop.md`, `docs/admin-support-runbook.md` |
 | 6 Tests | Client: 61 xunit (checklist never marks unverified steps; consent gating; probe; settings; help content has no internals; update checks; key/config safety). Server: 37 Go (onboarding derivation incl. Windows Home, verified from the office app's report; viewer cannot write; tenant isolation of notes/readiness; manual served without internals; trial, download, update, isolation, revocation, recovery) | `windows/tests`, `server/internal/*/*_test.go` |
 | 7 Screenshots | Dashboard, trial page and web guide captured from a seeded dry-run server: `docs/screenshots/`. **Client screenshots are not included** — this environment cannot run WPF; they come from the pilot PC (see §4) | `docs/screenshots/` |
+
+### 1a. Remote Tally journey (server v0.6.0 / client 0.4.0)
+
+| Part | Delivered | Where |
+|---|---|---|
+| Set up Tally remote access | 8-step guided journey with practice run; verified vs confirmed steps; confirmations accepted only in order; shows the Tally company recorded by DishNet | `Core/Onboarding/TallyJourney.cs`, `App/TallySetupWindow.xaml*` |
+| Troubleshooting assistant | Six-layer diagnosis (activation, connection, office PC, Remote Desktop, Windows sign-in, Tally) with owner per layer; observable layers decided automatically, others asked | `Core/Onboarding/Troubleshooter.cs`, `App/TroubleshootWindow.xaml*` |
+| Dashboard | Remote Tally pilot checklist (8), acceptance gated on all 8; Tally company; simultaneous-users count + assessment state | `server/internal/onboarding`, `provision/onboarding.go`, `admin/templates/customer.html`, migration `0005_tally.sql` |
+| Content | Help topics, manual (v1.1), SOP stage 6, runbook rewritten Tally-first; simultaneous users explained as a separate assessment | `help-topics.md`, `docs/manual/*`, `docs/customer-onboarding-sop.md`, `docs/admin-support-runbook.md` |
+| Screenshot | `docs/screenshots/dashboard-tally-readiness.png` (seeded dry-run server) | |
+
+**Success measure:** a non-technical staff member completes all 8 steps of
+the journey with minimal help; support records how much help was needed in
+the notes. Pilot procedure in §4.
 
 ## 2. Build instructions
 
@@ -35,10 +49,10 @@ See `git log --stat 88c899b..HEAD`. Main areas: `windows/src/**` (app, core onbo
 
 Office PC (Windows Pro) + one staff laptop + a DishNet admin, about 45 minutes:
 
-1. Hub: `update-server.sh v0.5.1`, `fetch-installer.sh client-v0.3.1`. Dashboard → Trial requests → approve a real request (or create a customer) → note both links.
+1. Hub: `update-server.sh v0.6.0`, `fetch-installer.sh client-v0.4.0`. In the dashboard, record the customer's **Tally company** and how many staff need Tally at once. Dashboard → Trial requests → approve a real request (or create a customer) → note both links.
 2. Office PC: open the office link → install → the tour appears (screenshot 1) → app connects → **Allow Remote Desktop for DishNet users** appears (screenshot 2) → click Allow → status note reads "Remote Desktop enabled. Firewall allows DishNet users on port 3389." (screenshot 3). Dashboard shows gateway **online**, onboarding row "Office computer online" verified.
 3. Staff laptop: open the staff link → install → tour → Connected → checklist: first four steps verified, incl. **Office computer reachable** (screenshot 4). If it says "not answering", stop and diagnose with the Support view.
-4. **Open Remote Desktop** → sign in with the office PC's Windows account → office desktop appears → open Tally → tick **✔ Remote Desktop worked** and **✔ Tally opened** (screenshot 5: all six steps done).
+4. Click **Set up Tally remote access** and let the staff member drive: Open Remote Desktop → sign in → open the named Tally company → one simple task → finish properly (screenshot 5: "Practice run complete"). Support ticks the 8-point pilot checklist in the dashboard as each point is demonstrated. Then click **Something is not working…** once with the office PC switched off to see the assistant name layer 3 (screenshot 5b).
 5. Help centre: open **Help**, read "What to do when the connection fails" (screenshot 6); **Contact DishNet support** shows the WhatsApp number.
 6. Dashboard: record edition Pro, readiness Ready, acceptance passed, handover done → onboarding "complete" (screenshot 7).
 7. Resilience: pull the laptop's internet for 2 minutes → app shows Reconnecting… then Connected without clicks. Switch the office PC off → laptop checklist says "Office computer not answering" within a minute; switch on → reachable again.

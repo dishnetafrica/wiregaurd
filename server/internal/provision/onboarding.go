@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dishnetafrica/wiregaurd/server/internal/onboarding"
 	"github.com/dishnetafrica/wiregaurd/server/internal/store"
 )
 
@@ -18,6 +19,11 @@ type OnboardingUpdate struct {
 	ReadinessNote string
 	MarkAccepted  bool
 	MarkHandover  bool
+
+	TallyCompany         string
+	ConcurrentUsers      int
+	ConcurrentAssessment string   // not_needed | needed | assessed
+	PilotChecks          []string // keys from onboarding.PilotChecks
 }
 
 func (s *Service) UpdateOnboarding(ctx context.Context, customerID int64, in OnboardingUpdate, actor string) error {
@@ -31,6 +37,38 @@ func (s *Service) UpdateOnboarding(ctx context.Context, customerID int64, in Onb
 	default:
 		return errors.New("invalid readiness value")
 	}
+	if in.ConcurrentAssessment == "" {
+		in.ConcurrentAssessment = "not_needed"
+	}
+	if in.ConcurrentUsers == 0 {
+		in.ConcurrentUsers = 1
+	}
+	switch in.ConcurrentAssessment {
+	case "not_needed", "needed", "assessed":
+	default:
+		return errors.New("invalid concurrent-users assessment value")
+	}
+	if in.ConcurrentUsers < 1 || in.ConcurrentUsers > 500 {
+		return errors.New("concurrent users must be between 1 and 500")
+	}
+	var checks []string
+	for _, k := range in.PilotChecks {
+		known := false
+		for _, c := range onboarding.PilotChecks {
+			if c.Key == k {
+				known = true
+			}
+		}
+		if !known {
+			return errors.New("unknown pilot check: " + k)
+		}
+		if !onboarding.HasCheck(checks, k) {
+			checks = append(checks, k)
+		}
+	}
+	if in.MarkAccepted && !onboarding.AllChecksPassed(checks) {
+		return errors.New("acceptance can be recorded only when all 8 pilot checks are ticked")
+	}
 	return s.db.Tx(ctx, func(tx *store.Tx) error {
 		if _, err := tx.GetCustomer(customerID); err != nil {
 			return err
@@ -40,6 +78,13 @@ func (s *Service) UpdateOnboarding(ctx context.Context, customerID int64, in Onb
 			return err
 		}
 		o.OfficeEdition, o.Readiness, o.ReadinessNote = in.OfficeEdition, in.Readiness, clipStr(in.ReadinessNote, 300)
+		company := clipStr(in.TallyCompany, 80)
+		if company != o.TallyCompany {
+			if err := tx.BumpCustomerConfigVersion(customerID); err != nil { // staff apps refetch and show the new company name
+				return err
+			}
+		}
+		o.TallyCompany, o.ConcurrentUsers, o.ConcurrentAssessment, o.PilotChecks = company, in.ConcurrentUsers, in.ConcurrentAssessment, checks
 		if in.MarkAccepted && o.AcceptanceAt.IsZero() {
 			o.AcceptanceAt, o.AcceptanceBy = s.now(), actor
 		}
@@ -49,7 +94,7 @@ func (s *Service) UpdateOnboarding(ctx context.Context, customerID int64, in Onb
 		if err := tx.UpsertOnboarding(o); err != nil {
 			return err
 		}
-		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: actor, Action: "onboarding.update", Target: fmt.Sprintf("customer:%d", customerID), Detail: fmt.Sprintf("edition=%s readiness=%s accepted=%v handover=%v", o.OfficeEdition, o.Readiness, !o.AcceptanceAt.IsZero(), !o.HandoverAt.IsZero())})
+		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: actor, Action: "onboarding.update", Target: fmt.Sprintf("customer:%d", customerID), Detail: fmt.Sprintf("edition=%s readiness=%s accepted=%v handover=%v checks=%d/%d concurrent=%d/%s", o.OfficeEdition, o.Readiness, !o.AcceptanceAt.IsZero(), !o.HandoverAt.IsZero(), len(o.PilotChecks), len(onboarding.PilotChecks), o.ConcurrentUsers, o.ConcurrentAssessment)})
 	})
 }
 

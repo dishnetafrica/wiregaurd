@@ -17,6 +17,12 @@ public sealed record UserSettings
     /// <summary>Manual checklist confirmations the customer ticked themselves (never set automatically).</summary>
     [JsonPropertyName("confirmed_rdp_instructions_at")] public DateTimeOffset? ConfirmedRdpInstructionsAt { get; init; }
     [JsonPropertyName("confirmed_tally_opened_at")] public DateTimeOffset? ConfirmedTallyOpenedAt { get; init; }
+    /// <summary>Practice-session confirmations for the "Set up Tally remote access" journey (customer-ticked, never automatic).</summary>
+    [JsonPropertyName("practice_signed_in_at")] public DateTimeOffset? PracticeSignedInAt { get; init; }
+    [JsonPropertyName("practice_company_opened_at")] public DateTimeOffset? PracticeCompanyOpenedAt { get; init; }
+    [JsonPropertyName("practice_task_done_at")] public DateTimeOffset? PracticeTaskDoneAt { get; init; }
+    [JsonPropertyName("practice_disconnected_at")] public DateTimeOffset? PracticeDisconnectedAt { get; init; }
+    [JsonPropertyName("practice_completed_at")] public DateTimeOffset? PracticeCompletedAt { get; init; }
 
     public bool TourDone => TourCompletedAt is not null || TourSkipped;
     public bool GatewayConsentGiven => GatewayConsentAt is not null;

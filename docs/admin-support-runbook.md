@@ -35,6 +35,19 @@ to a *verified* one in conversation with a customer.
 | "Update now does nothing" | Hub `/api/v1/client/latest` | Installer cache missing on hub | `sudo bash deploy/fetch-installer.sh` on the hub |
 | Everyone offline at once | `systemctl status dishnet-vpnd caddy wg-quick@wg0` on hub | Hub problem | §4 |
 
+The staff app's **Something is not working…** assistant classifies a failure
+into one of six layers; ask the customer what it said, and use the same
+language:
+
+| Layer | Observe in the dashboard | Owner |
+|---|---|---|
+| 1 Activation | Device missing / revoked; plan expired | DishNet (AD) |
+| 2 DishNet connection | Device handshake never/old | Customer (their internet) |
+| 3 Office computer | Gateway offline; edition Home; Allow not clicked (gateway firewall note) | Customer IT contact |
+| 4 Remote Desktop | Gateway online + policy present, yet RDP refused → Allow not clicked | Customer IT contact |
+| 5 Windows sign-in | Not observable | Customer IT contact (never DishNet) |
+| 6 Tally | Not observable | Customer's Tally provider |
+
 Always add a support note after each contact: what was observed, what was agreed, next step and owner.
 
 ## 3. Routine admin tasks
@@ -46,6 +59,7 @@ Always add a support note after each contact: what was observed, what was agreed
 | Extend trial / mark paid / suspend | Customer page → plan card |
 | Revoke a device (staff left) | Customer page → Devices → Revoke (cut off within a minute) |
 | Record onboarding facts, readiness, acceptance, handover | Customer page → Onboarding form |
+| Record the Tally company, simultaneous-users need and assessment, the 8-point pilot checklist | Customer page → Onboarding form (acceptance is refused until all 8 are ticked) |
 | Add administrator | Administrators (owner role only) |
 | Publish a new Windows client | GitHub → Actions → windows-client → Run workflow → version; then on hub `sudo bash deploy/fetch-installer.sh` |
 | Update the hub service | GitHub → Actions → server → Run workflow → version; then on hub `sudo bash deploy/update-server.sh` |

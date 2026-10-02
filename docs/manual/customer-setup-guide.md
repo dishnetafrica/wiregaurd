@@ -2,12 +2,20 @@
 
 Version {{version}} · {{date}} · Support: {{support_contact}}
 
-## 1. What the service does — and does not do
+## 1. Using Tally from anywhere — what the service does and does not do
 
-**DishNet Secure Connect** gives an authorised computer a private, encrypted
-connection to your office computer. You then use **Windows Remote Desktop** to
-see and control the office computer and run Tally there, just as if you were
-sitting at it.
+This guide is about one thing: **doing your Tally accounting from another
+location.** Tally and your company data stay on your office computer.
+**DishNet Secure Connect** gives your laptop a private, encrypted connection
+to that computer, and **Windows Remote Desktop** shows you its screen so you
+work in Tally exactly as at your desk.
+
+The four steps, every time:
+
+1. **Tally stays at the office.** The office computer runs Tally and keeps the data. It stays on, online and set up for remote access.
+2. **Connect DishNet Secure Connect.** Open the app and click *Connect to Office*.
+3. **Open Remote Desktop.** Connect to the office computer and sign in with your own Windows account.
+4. **Use Tally as usual.** Tally appears on the remote screen. Nothing is copied to your laptop.
 
 | It does | It does not |
 |---|---|
@@ -74,7 +82,33 @@ Desktop shows the office screen; Tally runs on the office computer.
    - **Office computer reachable** — the app tests whether the office computer answers. If it says *not answering*, the office computer is off, asleep, offline, or Remote Desktop was not allowed there yet.
 3. **Next:** the line under the checklist always tells you what to do next.
 
-## 7. Opening Remote Desktop and using Tally
+## 7. Your first session — the guided practice run
+
+Click **Set up Tally remote access** on the main screen. The app walks you
+through one complete session and marks each step: green ✔ when the software
+has checked it or you have confirmed it, **!** when something needs attention.
+
+| Step | Who confirms it | What you do |
+|---|---|---|
+| 1 This laptop is activated | software | Nothing — done by your install link |
+| 2 Connect to Office | software | Click *Connect to Office* |
+| 3 Office computer reachable | software | Wait a few seconds; the app tests the office computer |
+| 4 Open Remote Desktop | you | Click *Open Remote Desktop*, then *Connect* in the Windows window |
+| 5 Sign in | you | Type the office computer's Windows user name and password |
+| 6 Open Tally and select your company | you | The app names the company DishNet recorded for you |
+| 7 Do one simple task | you | For example view a report you are allowed to see |
+| 8 Finish properly | you | Close the company in Tally → close Remote Desktop → *Disconnect* |
+
+When all eight are done the app shows **Practice run complete**. From then
+on, daily use is: *Connect to Office → Open Remote Desktop → sign in → Tally.*
+You can repeat the practice run any time with **Practise again**.
+
+If anything fails, click **Something is not working…** The troubleshooting
+assistant checks what it can see and asks at most three questions to tell
+you which layer is failing (activation, connection, office computer, Remote
+Desktop, Windows sign-in, or Tally) and who can fix it — see section 9.
+
+## 8. Opening Remote Desktop and using Tally
 
 1. Click **Open Remote Desktop**. Windows Remote Desktop opens with the office computer's address already filled in.
 2. Click **Connect**, then sign in with the **Windows user name and password of the office computer**. If Windows warns that the computer's identity cannot be verified, choose *Yes* — you are connecting through DishNet's private connection, not the public internet.
@@ -83,7 +117,7 @@ Desktop shows the office screen; Tally runs on the office computer.
 
 Only one person at a time can control a normal Windows PC through Remote Desktop. If a colleague is working on it, you will be asked whether to disconnect them — agree with them first.
 
-## 8. Disconnecting
+## 9. Disconnecting
 
 1. In Tally, save and close the company as usual.
 2. Close the Remote Desktop window (or sign out inside it).
@@ -91,9 +125,21 @@ Only one person at a time can control a normal Windows PC through Remote Desktop
 
 The office computer keeps running for others. You can leave the DishNet app open; it uses no data when idle.
 
-## 9. When something does not work
+## 10. When something does not work
 
-Start at the top and stop at the first line that matches what you see.
+Use **Something is not working…** in the app first. It works through six
+layers in order and stops at the first one that fails:
+
+| Layer | Typical sign | Who fixes it |
+|---|---|---|
+| 1 Activation | "not activated", "access revoked", "trial has ended" | DishNet |
+| 2 DishNet connection | "Connecting…" or "Reconnecting…" that never ends | You — your laptop's internet |
+| 3 Office computer | "Office computer not answering" | The office — switch it on, check DishNet is Connected and *Allow* was clicked |
+| 4 Remote Desktop | Window does not open, or "the remote computer refused the connection" | You, then the office (Allow not clicked) |
+| 5 Windows sign-in | "The user name or password is incorrect" | Your office IT contact resets it; never DishNet |
+| 6 Tally | Tally opens but shows an error, licence or company problem | Your Tally provider |
+
+Or start at the top of this table and stop at the first line that matches what you see.
 
 | What you see | What it usually means | What to do |
 |---|---|---|
@@ -108,7 +154,19 @@ Start at the top and stop at the first line that matches what you see.
 
 Tally itself behaves exactly as it does at the office. Tally questions (licences, company files, errors inside Tally) are for your Tally provider; DishNet supports the connection and Remote Desktop.
 
-## 10. Security tips and support
+## 11. Several people at the same time
+
+A standard Windows 10/11 Pro office computer lets **one person at a time**
+work through Remote Desktop. If a colleague is already working, Windows asks
+whether to disconnect them — agree with them first.
+
+If your business needs several staff in Tally at the same time, that is not
+something the connection alone can provide. DishNet must assess, with you:
+Windows Server with Remote Desktop Services, its licensing (per user), and
+how your Tally is configured for multiple users. Ask DishNet before planning
+on it.
+
+## 12. Security tips and support
 
 - Never share your activation code or install link; each works once per computer.
 - Never give your Windows or Tally password to anyone — DishNet will never ask for it.
