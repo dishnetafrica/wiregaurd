@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
     paths: ["server/**", ".github/workflows/server.yml"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to publish, e.g. v0.1.0 (creates the tag and a GitHub Release with the binary)"
+        required: true
 
 jobs:
   test:
@@ -33,7 +38,7 @@ jobs:
   release:
     # Tag a commit `vX.Y.Z` to publish the binary as a GitHub Release so the
     # hub can download it with a single curl (no CI login needed).
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -45,6 +50,8 @@ jobs:
       - run: mv dishnet-vpnd dishnet-vpnd-linux-amd64 && sha256sum dishnet-vpnd-linux-amd64 > dishnet-vpnd-linux-amd64.sha256
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: |
             dishnet-vpnd-linux-amd64
             dishnet-vpnd-linux-amd64.sha256
