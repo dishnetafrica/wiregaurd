@@ -71,6 +71,9 @@ say "## 4. Binary"
 if [[ -n "$BIN_SRC" ]]; then
   run install -m 0755 "$BIN_SRC" /usr/local/bin/dishnet-vpnd.new
 elif command -v go >/dev/null; then
+  if [[ $(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo) -lt 1500 && $(awk '/SwapTotal/ {print int($2/1024)}' /proc/meminfo) -lt 1000 ]]; then
+    say "ERROR: building on this host needs ~1.5 GB RAM or swap. Download the CI artifact instead and set DISHNET_BIN (see docs/phase2-backend.md §4)."; [[ $APPLY -eq 1 ]] && exit 1
+  fi
   run bash -c "cd '$REPO/server' && CGO_ENABLED=0 go build -trimpath -ldflags '-s -w -X main.version=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo manual)' -o /usr/local/bin/dishnet-vpnd.new ./cmd/dishnet-vpnd"
 else
   say "ERROR: no Go toolchain and DISHNET_BIN not set. Build on another machine: cd server && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dishnet-vpnd ./cmd/dishnet-vpnd"; [[ $APPLY -eq 1 ]] && exit 1

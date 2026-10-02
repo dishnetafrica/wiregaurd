@@ -232,3 +232,26 @@ Known limitations / follow-ups:
 
 Nothing in this phase builds the Windows client; that starts (Phase 3) once
 Stage 1 above has passed.
+
+---
+
+## 7. Getting the binary and the scripts onto the hub (no Go on the Droplet)
+
+CI builds `dishnet-vpnd` on every push (`.github/workflows/server.yml`).
+On the Mac:
+
+```bash
+# 1. download the artifact "dishnet-vpnd-linux-amd64" from the green run at
+#    https://github.com/dishnetafrica/wiregaurd/actions  (unzip it)
+# 2. copy binary + repo scripts to the hub
+scp dishnet-vpnd root@165.227.89.92:/root/
+ssh root@165.227.89.92 'apt-get install -y git >/dev/null; git clone -b claude/epic-ramanujan-wkwq3j https://github.com/dishnetafrica/wiregaurd.git /root/wiregaurd 2>/dev/null || git -C /root/wiregaurd pull'
+# 3. on the hub
+ssh root@165.227.89.92
+cd /root/wiregaurd
+bash deploy/preflight.sh                                   # audit + backup set
+DISHNET_BIN=/root/dishnet-vpnd DISHNET_DOMAIN=vpn.dishnetuganda.com \
+DISHNET_ADMIN_ALLOW=<your.ip.here> bash deploy/install.sh   # dry run, prints the plan
+```
+
+Only after reviewing the dry-run output: the same command with `--apply`.
