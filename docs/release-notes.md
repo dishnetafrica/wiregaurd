@@ -28,6 +28,11 @@ and another default policy, and using up the 5-use gateway code.
 - No schema change. Existing duplicates (KISHAN .67 and .68) are cleaned up
   by revoking them in the dashboard once; .69 stays as the live office PC.
 
+Verified assets: `v0.6.1/dishnet-vpnd-linux-amd64` reports `dishnet-vpnd
+7dd15c2`, sha256 matches; `client-v0.4.1/DishNetSecureConnect-Setup-0.4.1.exe`
+55,822,768 bytes, sha256
+`118d791133ba1afd922c33531a2fc28793c57648add9a679feccee22f96bc350`.
+
 Deploy: `sudo bash deploy/update-server.sh v0.6.1` and
 `sudo bash deploy/fetch-installer.sh client-v0.4.1`. Rollback: `v0.6.0` /
 `client-v0.4.0`.
