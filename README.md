@@ -9,7 +9,7 @@ Powered by WireGuard®.
 |---|---|---|
 | Management service (`dishnet-vpnd`): device API, admin dashboard, install links, trials, WireGuard + nftables provisioner | `server/` | **Live** at https://vpn.dishnetuganda.com |
 | Hub deployment: preflight audit, installer (dry-run by default), rollback, systemd, Caddy | `deploy/` | **Deployed to 165.227.89.92 on 2026-10-02** (v0.1.0) |
-| Windows client + installer | `windows/` | Phase 3 — app, Windows integration and installer built; CI produces `DishNetSecureConnect-Setup-<ver>.exe`; awaiting Phase 4 on real hardware |
+| Windows client + installer | `windows/` | 0.3.0: guided onboarding (tour, checklist, Allow screen, Open Remote Desktop, help centre), self-update; awaiting Phase 4 on real hardware |
 
 ## Documents
 
@@ -44,3 +44,6 @@ sudo bash deploy/rollback.sh /var/backups/dishnet/<stamp>   # if anything is wro
 ```
 * [`docs/pilot-test.md`](docs/pilot-test.md) — first two-device test with the official WireGuard client and `tools/activate.*`
 * [`docs/phase3-windows.md`](docs/phase3-windows.md) — Windows client design and progress
+* [`docs/onboarding-plan.md`](docs/onboarding-plan.md) · [`docs/onboarding-release.md`](docs/onboarding-release.md) — guided onboarding: plan, deliverables, pilot procedure, assumptions
+* [`docs/customer-onboarding-sop.md`](docs/customer-onboarding-sop.md) · [`docs/admin-support-runbook.md`](docs/admin-support-runbook.md) — who does what; support operations
+* [`docs/manual/customer-setup-guide.md`](docs/manual/customer-setup-guide.md) — customer manual source (served at `/guide`, `/guide.pdf`)
