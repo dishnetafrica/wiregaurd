@@ -111,20 +111,22 @@ free -m | grep Swap
 
 ### 2.4 Get the binary and the repository onto the hub
 
-On the Mac: open <https://github.com/dishnetafrica/wiregaurd/actions>, open
-the latest green **server** run, download artifact
-`dishnet-vpnd-linux-amd64`, unzip → file `dishnet-vpnd`.
+Every release tag publishes a static Linux binary (built and tested by CI)
+at <https://github.com/dishnetafrica/wiregaurd/releases>. On the hub:
 
 ```bash
-# Mac
-scp dishnet-vpnd root@165.227.89.92:/root/dishnet-vpnd
-# hub
+curl -fL https://github.com/dishnetafrica/wiregaurd/releases/latest/download/dishnet-vpnd-linux-amd64 -o /root/dishnet-vpnd
+curl -fL https://github.com/dishnetafrica/wiregaurd/releases/latest/download/dishnet-vpnd-linux-amd64.sha256 | sed 's| .*| /root/dishnet-vpnd|' | sha256sum -c
 chmod +x /root/dishnet-vpnd && /root/dishnet-vpnd version
-# expected: dishnet-vpnd <7-char git sha>
-apt-get install -y git >/dev/null && git clone https://github.com/dishnetafrica/wiregaurd.git /root/wiregaurd
+# expected: /root/dishnet-vpnd: OK
+#           dishnet-vpnd <7-char git sha>
+apt-get install -y git >/dev/null; git clone https://github.com/dishnetafrica/wiregaurd.git /root/wiregaurd 2>/dev/null || git -C /root/wiregaurd pull
 cd /root/wiregaurd && git log --oneline -1
 # expected: <sha> <latest commit message>
 ```
+
+To publish a new version later: GitHub → Actions → **server** → *Run
+workflow* → enter `vX.Y.Z`; the run tests, builds and creates the release.
 
 ---
 
