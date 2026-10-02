@@ -28,6 +28,13 @@ Date: 2026-10-02. Companion to `onboarding-plan.md` (plan), `customer-onboarding
 the journey with minimal help; support records how much help was needed in
 the notes. Pilot procedure in §4.
 
+### 1b. DishNet Web Desktop (server v0.7.1)
+
+Tally in the browser: `https://tally.dishnetuganda.com` → sign in → *Open my
+office computer* → Windows login of the office PC → desktop in the tab.
+Nothing installed on staff devices. Design, security and operations in
+`docs/phase5-web-desktop.md`; dashboard *Browser access* card per customer.
+
 ## 2. Build instructions
 
 ```bash

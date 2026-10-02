@@ -8,7 +8,9 @@ publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
-## Server v0.7.0 — 2026-10-02 (DishNet Web Desktop: Tally in the browser)
+## Server v0.7.1 — 2026-10-02 (DishNet Web Desktop: Tally in the browser)
+
+(v0.7.0 was published minutes earlier; v0.7.1 adds only the phone-width header fix. Deploy v0.7.1.)
 
 No client change; 0.4.2 stays current.
 
@@ -26,8 +28,10 @@ No client change; 0.4.2 stays current.
 - New hub dependency: `guacd` (Ubuntu package), loopback only.
 
 Verified: `go vet`, `go test -race ./...` (8 packages, 46 tests, including a
-protocol-faithful fake guacd), build. Real RDP through guacd is verified in
-the pilot (`docs/pilot-test.md`).
+protocol-faithful fake guacd), build. Screenshots from a seeded dry-run
+server: `docs/screenshots/dashboard-web-access.png`, `webdesk-login.png`,
+`webdesk-home.png`, `webdesk-office-signin.png`, `webdesk-security.png`.
+Real RDP through guacd is verified in the pilot (`docs/pilot-test.md`).
 
 ### Deploy (hub, as root) — DNS first
 
@@ -38,11 +42,11 @@ the pilot (`docs/pilot-test.md`).
 ```bash
 cd /root/wiregaurd && git pull
 export DISHNET_DESK_DOMAIN=tally.dishnetuganda.com
-sudo -E bash deploy/update-server.sh v0.7.0
+sudo -E bash deploy/update-server.sh v0.7.1
 systemctl status guacd --no-pager | head -3
 curl -sI https://tally.dishnetuganda.com/ | head -1
 ```
-Expected: `downloaded v0.7.0 …`, `guacd … active (running)`, and
+Expected: `downloaded v0.7.1 …`, `guacd … active (running)`, and
 `HTTP/2 302` (redirect to the sign-in page).
 
 ### Rollback
