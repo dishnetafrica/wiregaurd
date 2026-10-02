@@ -41,7 +41,11 @@ location, with DishNet Secure Connect behind the scenes.
 
 Verified before release: `go vet`, `go test -race ./...` (7 packages, 39
 tests), `dotnet test` (65 tests), solution build, manual rebuilt (HTML +
-PDF), dashboard screenshot captured from a seeded dry-run server.
+PDF), dashboard screenshot captured from a seeded dry-run server. Release
+assets verified: `v0.6.0/dishnet-vpnd-linux-amd64` reports `dishnet-vpnd
+998ce23`, sha256 matches; `client-v0.4.0/DishNetSecureConnect-Setup-0.4.0.exe`
+55,819,608 bytes, sha256
+`c675ac1add49e8930c00f912334d253413908670aa70873f827b42b140758bb4`.
 
 ### Deploy (hub, as root)
 
@@ -49,7 +53,7 @@ PDF), dashboard screenshot captured from a seeded dry-run server.
 cd /root/wiregaurd && git pull
 sudo bash deploy/update-server.sh v0.6.0
 sudo bash deploy/fetch-installer.sh client-v0.4.0
-curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.4.0"
+curl -s https://vpn.dishnetuganda.com/api/v1/client/latest   # expect "version":"0.4.0", sha256 c675ac1a…58bb4, size 55819608
 ```
 
 ### Rollback
