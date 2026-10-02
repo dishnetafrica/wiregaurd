@@ -8,10 +8,30 @@
 
 {{if .NewCode}}
 <div class="code-reveal">
-  <div class="muted">New activation code — shown once. Give it to the customer now; it is not stored in clear text.</div>
+  <div class="muted">New activation code — shown once. It is not stored in clear text; copy it now.</div>
   <div class="code">{{.NewCode}}</div>
+  {{if .NewLink}}
+  <div class="muted" style="margin-top:12px">Install link for the customer (Windows): download → install → connects automatically, nothing to type.</div>
+  <div class="mono" style="font-size:15px;user-select:all;background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:4px">{{.NewLink}}</div>
+  {{end}}
 </div>
 {{end}}
+
+<div class="card">
+  <strong>Plan:</strong>
+  {{if eq $c.Plan "trial"}}<span class="badge warn">30-day trial</span>{{else if eq $c.Plan "paid"}}<span class="badge ok">paid</span>{{else}}<span class="badge muted">unlimited</span>{{end}}
+  {{if not $c.SubscriptionExpiresAt.IsZero}}
+    · {{if .Expired}}<span class="badge bad">expired {{date $c.SubscriptionExpiresAt}}</span>{{else}}ends <strong>{{date $c.SubscriptionExpiresAt}}</strong> ({{.DaysLeft}} days left){{end}}
+  {{end}}
+  {{if .IsOperator}}
+  <span style="margin-left:14px">
+    <form method="post" action="{{$back}}/extend" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="days" value="30"><input type="hidden" name="paid" value="no"><button class="small secondary">Extend 30 days</button></form>
+    <form method="post" action="{{$back}}/extend" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="days" value="365"><input type="hidden" name="paid" value="yes"><button class="small">Mark paid: +1 year</button></form>
+    <form method="post" action="{{$back}}/extend" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="days" value="30"><input type="hidden" name="paid" value="yes"><button class="small">Mark paid: +30 days</button></form>
+  </span>
+  {{end}}
+  <div class="muted" style="font-size:13px;margin-top:6px">When the date passes, all of this customer's devices are disconnected automatically and the app shows "trial ended". Extending reconnects them within a minute.</div>
+</div>
 
 {{if .IsOperator}}
 <div class="card">
@@ -117,7 +137,8 @@
       <div><label>Business name</label><input name="name" value="{{$c.Name}}" required></div>
       <div><label>Contact</label><input name="contact" value="{{$c.Contact}}"></div>
       <div><label>Device limit (max {{.Capacity}})</label><input name="device_limit" type="number" min="1" max="{{.Capacity}}" value="{{$c.DeviceLimit}}"></div>
-      <div><label>Subscription expires (YYYY-MM-DD, blank = never)</label><input name="expires_at" value="{{date $c.SubscriptionExpiresAt | printf "%s" }}" placeholder="never"></div>
+      <div><label>Plan</label><select name="plan"><option value="trial" {{if eq $c.Plan "trial"}}selected{{end}}>Trial</option><option value="paid" {{if eq $c.Plan "paid"}}selected{{end}}>Paid</option><option value="unlimited" {{if eq $c.Plan "unlimited"}}selected{{end}}>Unlimited (no expiry)</option></select></div>
+      <div><label>Expires (YYYY-MM-DD; ignored for Unlimited)</label><input name="expires_at" value="{{if $c.SubscriptionExpiresAt.IsZero}}{{else}}{{date $c.SubscriptionExpiresAt}}{{end}}"></div>
       <div><label>Default ports for new gateways</label><input name="default_ports" value="{{ports $c.DefaultPorts}}"></div>
     </div>
     <button>Save</button>

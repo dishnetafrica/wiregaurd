@@ -123,13 +123,13 @@ func (t *Tx) UsedBlocks(poolID int64) ([]netip.Prefix, error) {
 
 // ---------- customers ----------
 
-const customerCols = `id, name, contact, status, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, created_at, updated_at`
+const customerCols = `id, name, contact, status, plan, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, created_at, updated_at`
 
 func scanCustomer(sc interface{ Scan(...any) error }) (Customer, error) {
 	var c Customer
 	var exp sql.NullString
 	var ports, block, created, updated string
-	if err := sc.Scan(&c.ID, &c.Name, &c.Contact, (*string)(&c.Status), &exp, &c.DeviceLimit, &ports, &block, &c.PoolID, &created, &updated); err != nil {
+	if err := sc.Scan(&c.ID, &c.Name, &c.Contact, (*string)(&c.Status), (*string)(&c.Plan), &exp, &c.DeviceLimit, &ports, &block, &c.PoolID, &created, &updated); err != nil {
 		return c, err
 	}
 	c.SubscriptionExpiresAt = ParseTime(exp)
@@ -142,9 +142,12 @@ func scanCustomer(sc interface{ Scan(...any) error }) (Customer, error) {
 
 func (t *Tx) InsertCustomer(c Customer) (Customer, error) {
 	now := Now()
-	res, err := t.tx.ExecContext(t.ctx, `INSERT INTO customers(name, contact, status, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		c.Name, c.Contact, string(CustomerActive), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), c.VPNBlock.Masked().String(), c.PoolID, now, now)
+	if c.Plan == "" {
+		c.Plan = PlanPaid
+	}
+	res, err := t.tx.ExecContext(t.ctx, `INSERT INTO customers(name, contact, status, plan, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		c.Name, c.Contact, string(CustomerActive), string(c.Plan), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), c.VPNBlock.Masked().String(), c.PoolID, now, now)
 	if err != nil {
 		return c, err
 	}
@@ -178,8 +181,8 @@ func (t *Tx) ListCustomers() ([]Customer, error) {
 }
 
 func (t *Tx) UpdateCustomer(c Customer) error {
-	_, err := t.tx.ExecContext(t.ctx, `UPDATE customers SET name=?, contact=?, status=?, subscription_expires_at=?, device_limit=?, default_ports=?, updated_at=? WHERE id=?`,
-		c.Name, c.Contact, string(c.Status), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), Now(), c.ID)
+	_, err := t.tx.ExecContext(t.ctx, `UPDATE customers SET name=?, contact=?, status=?, plan=?, subscription_expires_at=?, device_limit=?, default_ports=?, updated_at=? WHERE id=?`,
+		c.Name, c.Contact, string(c.Status), string(c.Plan), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), Now(), c.ID)
 	return err
 }
 

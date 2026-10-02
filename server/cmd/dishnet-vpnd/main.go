@@ -52,6 +52,8 @@ type Config struct {
 	DryRun        bool          // DISHNET_DRY_RUN       use fake backends (development / staging on a laptop)
 	Reconcile     time.Duration // DISHNET_RECONCILE     default 60s
 	InsecureCooks bool          // DISHNET_INSECURE_COOKIES only for dry-run over plain http
+	PublicURL     string        // DISHNET_PUBLIC_URL     default https://vpn.dishnetuganda.com (install links)
+	InstallerPath string        // DISHNET_INSTALLER_PATH default /var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe
 }
 
 func loadConfig() Config {
@@ -70,6 +72,7 @@ func loadConfig() Config {
 		NFTFile: get("DISHNET_NFT_FILE", "/etc/nftables.d/dishnet.nft"), AdminAllow: os.Getenv("DISHNET_ADMIN_ALLOW"),
 		TrustProxy: get("DISHNET_TRUST_PROXY", "true") == "true", DryRun: os.Getenv("DISHNET_DRY_RUN") == "true",
 		Reconcile: rec, InsecureCooks: os.Getenv("DISHNET_INSECURE_COOKIES") == "true",
+		PublicURL: get("DISHNET_PUBLIC_URL", "https://vpn.dishnetuganda.com"), InstallerPath: get("DISHNET_INSTALLER_PATH", "/var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe"),
 	}
 }
 
@@ -174,12 +177,13 @@ func serve(cfg Config, log *slog.Logger) error {
 	if len(allow) == 0 {
 		log.Warn("DISHNET_ADMIN_ALLOW is empty: the dashboard is reachable from any address (still password protected)")
 	}
-	adminH, err := admin.New(svc, log, admin.Options{Allowlist: allow, TrustProxy: cfg.TrustProxy, SecureCookies: !cfg.InsecureCooks})
+	adminH, err := admin.New(svc, log, admin.Options{Allowlist: allow, TrustProxy: cfg.TrustProxy, SecureCookies: !cfg.InsecureCooks, PublicURL: cfg.PublicURL})
 	if err != nil {
 		return err
 	}
 	mux := http.NewServeMux()
 	api.New(svc, log, cfg.TrustProxy).Register(mux)
+	api.NewDownloads(svc, cfg.InstallerPath, log).Register(mux)
 	adminH.Register(mux)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

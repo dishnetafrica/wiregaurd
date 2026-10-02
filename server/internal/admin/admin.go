@@ -42,12 +42,14 @@ type Handler struct {
 	trustProxy bool
 	loginLimit *ratelimit.Limiter
 	secure     bool
+	publicURL  string
 }
 
 type Options struct {
 	Allowlist     []netip.Prefix // empty = any source
 	TrustProxy    bool
-	SecureCookies bool // false only for local dry-run over plain HTTP
+	SecureCookies bool   // false only for local dry-run over plain HTTP
+	PublicURL     string // e.g. https://vpn.dishnetuganda.com — used to build install links
 }
 
 func New(svc *provision.Service, log *slog.Logger, opt Options) (*Handler, error) {
@@ -94,7 +96,7 @@ func New(svc *provision.Service, log *slog.Logger, opt Options) (*Handler, error
 		return nil, err
 	}
 	return &Handler{svc: svc, db: svc.DB(), log: log, tmpl: tmpl, allow: opt.Allowlist, trustProxy: opt.TrustProxy,
-		loginLimit: ratelimit.New(10, 15*time.Minute), secure: opt.SecureCookies}, nil
+		loginLimit: ratelimit.New(10, 15*time.Minute), secure: opt.SecureCookies, publicURL: strings.TrimRight(opt.PublicURL, "/")}, nil
 }
 
 func (h *Handler) Register(mux *http.ServeMux) {
@@ -108,6 +110,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/customers/{id}", h.gate(h.requireRole(store.AdminViewer, h.customer)))
 	mux.HandleFunc("POST /admin/customers/{id}/update", h.gate(h.requireRole(store.AdminOperator, h.updateCustomer)))
 	mux.HandleFunc("POST /admin/customers/{id}/status", h.gate(h.requireRole(store.AdminOperator, h.customerStatus)))
+	mux.HandleFunc("POST /admin/customers/{id}/extend", h.gate(h.requireRole(store.AdminOperator, h.extendCustomer)))
 	mux.HandleFunc("POST /admin/customers/{id}/codes", h.gate(h.requireRole(store.AdminOperator, h.createCode)))
 	mux.HandleFunc("POST /admin/customers/{id}/policies", h.gate(h.requireRole(store.AdminOperator, h.createPolicy)))
 	mux.HandleFunc("POST /admin/codes/{id}/revoke", h.gate(h.requireRole(store.AdminOperator, h.revokeCode)))
@@ -390,7 +393,11 @@ func (h *Handler) createCustomer(w http.ResponseWriter, r *http.Request) {
 		redirectErr(w, r, "/admin/customers", err)
 		return
 	}
-	c, err := h.svc.CreateCustomer(r.Context(), provision.NewCustomer{Name: r.FormValue("name"), Contact: r.FormValue("contact"), DeviceLimit: limit, DefaultPorts: ports, ExpiresAt: exp, Actor: s.admin.Email})
+	plan, ok := store.ParsePlan(r.FormValue("plan"))
+	if !ok {
+		plan = store.PlanTrial
+	}
+	c, err := h.svc.CreateCustomer(r.Context(), provision.NewCustomer{Name: r.FormValue("name"), Contact: r.FormValue("contact"), DeviceLimit: limit, DefaultPorts: ports, Plan: plan, ExpiresAt: exp, Actor: s.admin.Email})
 	if err != nil {
 		redirectErr(w, r, "/admin/customers", err)
 		return
@@ -451,6 +458,12 @@ func (h *Handler) customer(w http.ResponseWriter, r *http.Request) {
 	}
 	if code := r.URL.Query().Get("code"); code != "" {
 		data["NewCode"] = code // shown exactly once, straight from the redirect
+		if h.publicURL != "" {
+			data["NewLink"] = h.publicURL + "/get/" + code
+		}
+	}
+	if c, ok := data["Customer"].(store.Customer); ok && !c.SubscriptionExpiresAt.IsZero() {
+		data["DaysLeft"] = int(time.Until(c.SubscriptionExpiresAt).Hours() / 24)
 	}
 	h.render(w, r, "customer.html", data, http.StatusOK)
 }
@@ -488,6 +501,9 @@ func (h *Handler) updateCustomer(w http.ResponseWriter, r *http.Request) {
 		redirectErr(w, r, back, fmt.Errorf("device limit must be between 1 and %d", capacityOf(c)))
 		return
 	}
+	if plan, ok := store.ParsePlan(r.FormValue("plan")); ok {
+		c.Plan = plan
+	}
 	c.Name = strings.TrimSpace(r.FormValue("name"))
 	c.Contact = strings.TrimSpace(r.FormValue("contact"))
 	c.SubscriptionExpiresAt = exp
@@ -514,6 +530,23 @@ func (h *Handler) customerStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectFlash(w, r, back, "Customer "+string(status))
+}
+
+func (h *Handler) extendCustomer(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/admin/customers/%d", id)
+	days, _ := strconv.Atoi(r.FormValue("days"))
+	paid := r.FormValue("paid") == "yes"
+	if err := h.svc.ExtendSubscription(r.Context(), id, days, paid, s.admin.Email); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	what := "Trial extended"
+	if paid {
+		what = "Subscription set as paid"
+	}
+	redirectFlash(w, r, back, fmt.Sprintf("%s by %d days", what, days))
 }
 
 func (h *Handler) createCode(w http.ResponseWriter, r *http.Request) {

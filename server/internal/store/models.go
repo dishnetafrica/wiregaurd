@@ -19,11 +19,28 @@ const (
 	CustomerSuspended CustomerStatus = "suspended"
 )
 
+type Plan string
+
+const (
+	PlanTrial     Plan = "trial"     // time-limited evaluation; expires at SubscriptionExpiresAt
+	PlanPaid      Plan = "paid"      // paid until SubscriptionExpiresAt
+	PlanUnlimited Plan = "unlimited" // no expiry
+)
+
+func ParsePlan(s string) (Plan, bool) {
+	switch Plan(s) {
+	case PlanTrial, PlanPaid, PlanUnlimited:
+		return Plan(s), true
+	}
+	return "", false
+}
+
 type Customer struct {
 	ID                    int64
 	Name                  string
 	Contact               string
 	Status                CustomerStatus
+	Plan                  Plan
 	SubscriptionExpiresAt time.Time // zero = never
 	DeviceLimit           int
 	DefaultPorts          []int // ports opened from clients to a newly registered gateway

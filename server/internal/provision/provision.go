@@ -153,9 +153,13 @@ type NewCustomer struct {
 	Contact      string
 	DeviceLimit  int
 	DefaultPorts []int
-	ExpiresAt    time.Time
+	Plan         store.Plan // default: 30-day trial
+	ExpiresAt    time.Time  // trial/paid: default now+TrialDays for a trial
 	Actor        string
 }
+
+// TrialDays is the default evaluation period for new customers.
+const TrialDays = 30
 
 func (s *Service) CreateCustomer(ctx context.Context, in NewCustomer) (store.Customer, error) {
 	var out store.Customer
@@ -170,6 +174,21 @@ func (s *Service) CreateCustomer(ctx context.Context, in NewCustomer) (store.Cus
 	}
 	if err := policy.ValidatePorts(in.DefaultPorts, false); err != nil {
 		return out, err
+	}
+	if in.Plan == "" {
+		in.Plan = store.PlanTrial
+	}
+	switch in.Plan {
+	case store.PlanTrial:
+		if in.ExpiresAt.IsZero() {
+			in.ExpiresAt = s.now().Add(TrialDays * 24 * time.Hour)
+		}
+	case store.PlanUnlimited:
+		in.ExpiresAt = time.Time{}
+	case store.PlanPaid:
+		if in.ExpiresAt.IsZero() {
+			return out, errors.New("a paid plan needs an expiry date")
+		}
 	}
 	err := s.db.Tx(ctx, func(tx *store.Tx) error {
 		pools, err := tx.ListPools()
@@ -204,13 +223,13 @@ func (s *Service) CreateCustomer(ctx context.Context, in NewCustomer) (store.Cus
 		}
 		c, err := tx.InsertCustomer(store.Customer{
 			Name: strings.TrimSpace(in.Name), Contact: strings.TrimSpace(in.Contact), DeviceLimit: in.DeviceLimit,
-			DefaultPorts: in.DefaultPorts, SubscriptionExpiresAt: in.ExpiresAt, VPNBlock: block, PoolID: poolID,
+			DefaultPorts: in.DefaultPorts, Plan: in.Plan, SubscriptionExpiresAt: in.ExpiresAt, VPNBlock: block, PoolID: poolID,
 		})
 		if err != nil {
 			return err
 		}
 		out = c
-		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: in.Actor, Action: "customer.create", Target: fmt.Sprintf("customer:%d", c.ID), Detail: fmt.Sprintf("%s block=%s", c.Name, block)})
+		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: in.Actor, Action: "customer.create", Target: fmt.Sprintf("customer:%d", c.ID), Detail: fmt.Sprintf("%s block=%s plan=%s expires=%s", c.Name, block, c.Plan, c.SubscriptionExpiresAt.Format("2006-01-02"))})
 	})
 	return out, err
 }
@@ -241,16 +260,52 @@ func (s *Service) UpdateCustomer(ctx context.Context, c store.Customer, actor st
 	if err := policy.ValidatePorts(c.DefaultPorts, false); err != nil {
 		return err
 	}
+	if c.Plan == store.PlanUnlimited {
+		c.SubscriptionExpiresAt = time.Time{}
+	} else if c.SubscriptionExpiresAt.IsZero() {
+		return errors.New("a trial or paid plan needs an expiry date")
+	}
 	err := s.db.Tx(ctx, func(tx *store.Tx) error {
 		if err := tx.UpdateCustomer(c); err != nil {
 			return err
 		}
-		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: actor, Action: "customer.update", Target: fmt.Sprintf("customer:%d", c.ID), Detail: fmt.Sprintf("expires=%s limit=%d", c.SubscriptionExpiresAt.Format(time.RFC3339), c.DeviceLimit)})
+		if err := tx.BumpCustomerConfigVersion(c.ID); err != nil { // devices refresh their expiry display
+			return err
+		}
+		return tx.Audit(store.AuditEntry{ActorType: "admin", ActorID: actor, Action: "customer.update", Target: fmt.Sprintf("customer:%d", c.ID), Detail: fmt.Sprintf("plan=%s expires=%s limit=%d", c.Plan, c.SubscriptionExpiresAt.Format(time.RFC3339), c.DeviceLimit)})
 	})
 	if err != nil {
 		return err
 	}
 	return s.Apply(ctx, "customer update")
+}
+
+// ExtendSubscription moves the expiry forward by days (from the later of now
+// and the current expiry) and, for a trial, converts it to a paid plan when
+// paid is true.
+func (s *Service) ExtendSubscription(ctx context.Context, id int64, days int, paid bool, actor string) error {
+	if days < 1 || days > 3660 {
+		return errors.New("days must be between 1 and 3660")
+	}
+	var c store.Customer
+	if err := s.db.View(ctx, func(tx *store.Tx) error {
+		var err error
+		c, err = tx.GetCustomer(id)
+		return err
+	}); err != nil {
+		return err
+	}
+	base := s.now()
+	if c.SubscriptionExpiresAt.After(base) {
+		base = c.SubscriptionExpiresAt
+	}
+	c.SubscriptionExpiresAt = base.Add(time.Duration(days) * 24 * time.Hour)
+	if paid {
+		c.Plan = store.PlanPaid
+	} else if c.Plan == store.PlanUnlimited {
+		c.Plan = store.PlanPaid
+	}
+	return s.UpdateCustomer(ctx, c, actor)
 }
 
 // ---------- activation codes ----------
@@ -471,6 +526,7 @@ type DeviceConfig struct {
 	DNS           []string       `json:"dns"`
 	Access        []AccessTarget `json:"access"`
 	ConfigVersion int            `json:"config_version"`
+	Plan          string         `json:"plan"` // trial | paid | unlimited
 	ExpiresAt     string         `json:"subscription_expires_at,omitempty"`
 }
 
@@ -549,7 +605,7 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 		cfg = DeviceConfig{
 			DeviceID: d.ID, DeviceName: d.Name, Role: d.Role, CustomerName: c.Name,
 			Address: netip.PrefixFrom(d.VPNIP, 32).String(), HubPublicKey: hubKey, Endpoint: s.cfg.Endpoint,
-			Keepalive: s.cfg.Keepalive, DNS: []string{}, ConfigVersion: d.ConfigVersion, AllowedIPs: []string{},
+			Keepalive: s.cfg.Keepalive, DNS: []string{}, ConfigVersion: d.ConfigVersion, AllowedIPs: []string{}, Plan: string(c.Plan),
 		}
 		// The hub's own address is always routed so a client can `ping
 		// 10.20.0.1` as a connectivity check; the hub firewall allows only
