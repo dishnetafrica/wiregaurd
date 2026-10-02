@@ -123,15 +123,17 @@ func (t *Tx) UsedBlocks(poolID int64) ([]netip.Prefix, error) {
 
 // ---------- customers ----------
 
-const customerCols = `id, name, contact, status, plan, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, created_at, updated_at`
+const customerCols = `id, name, contact, status, plan, subscription_expires_at, device_limit, default_ports, vpn_block, pool_id, web_access, created_at, updated_at`
 
 func scanCustomer(sc interface{ Scan(...any) error }) (Customer, error) {
 	var c Customer
 	var exp sql.NullString
 	var ports, block, created, updated string
-	if err := sc.Scan(&c.ID, &c.Name, &c.Contact, (*string)(&c.Status), (*string)(&c.Plan), &exp, &c.DeviceLimit, &ports, &block, &c.PoolID, &created, &updated); err != nil {
+	var web int
+	if err := sc.Scan(&c.ID, &c.Name, &c.Contact, (*string)(&c.Status), (*string)(&c.Plan), &exp, &c.DeviceLimit, &ports, &block, &c.PoolID, &web, &created, &updated); err != nil {
 		return c, err
 	}
+	c.WebAccess = web != 0
 	c.SubscriptionExpiresAt = ParseTime(exp)
 	c.DefaultPorts = splitInts(ports)
 	c.VPNBlock, _ = netip.ParsePrefix(block)
@@ -181,8 +183,128 @@ func (t *Tx) ListCustomers() ([]Customer, error) {
 }
 
 func (t *Tx) UpdateCustomer(c Customer) error {
-	_, err := t.tx.ExecContext(t.ctx, `UPDATE customers SET name=?, contact=?, status=?, plan=?, subscription_expires_at=?, device_limit=?, default_ports=?, updated_at=? WHERE id=?`,
-		c.Name, c.Contact, string(c.Status), string(c.Plan), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), Now(), c.ID)
+	_, err := t.tx.ExecContext(t.ctx, `UPDATE customers SET name=?, contact=?, status=?, plan=?, subscription_expires_at=?, device_limit=?, default_ports=?, web_access=?, updated_at=? WHERE id=?`,
+		c.Name, c.Contact, string(c.Status), string(c.Plan), nullTime(c.SubscriptionExpiresAt), c.DeviceLimit, joinInts(c.DefaultPorts), boolInt(c.WebAccess), Now(), c.ID)
+	return err
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// ---------- web desktop: customer users and sessions ----------
+
+const customerUserCols = `id, customer_id, login, display_name, password_hash, must_change_password, totp_secret, status, created_by, created_at, last_login_at`
+
+func scanCustomerUser(sc interface{ Scan(...any) error }) (CustomerUser, error) {
+	var u CustomerUser
+	var must int
+	var status, created string
+	var last sql.NullString
+	if err := sc.Scan(&u.ID, &u.CustomerID, &u.Login, &u.DisplayName, &u.PasswordHash, &must, &u.TOTPSecret, &status, &u.CreatedBy, &created, &last); err != nil {
+		return u, err
+	}
+	u.MustChangePassword = must != 0
+	u.Disabled = status == "disabled"
+	u.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	u.LastLoginAt = ParseTime(last)
+	return u, nil
+}
+
+func (t *Tx) InsertCustomerUser(u CustomerUser) (CustomerUser, error) {
+	res, err := t.tx.ExecContext(t.ctx, `INSERT INTO customer_users(customer_id, login, display_name, password_hash, must_change_password, totp_secret, status, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+		u.CustomerID, strings.ToLower(strings.TrimSpace(u.Login)), u.DisplayName, u.PasswordHash, boolInt(u.MustChangePassword), u.TOTPSecret, "active", u.CreatedBy, Now())
+	if err != nil {
+		if isUnique(err) {
+			return u, fmt.Errorf("store: login %s already exists", u.Login)
+		}
+		return u, err
+	}
+	u.ID, _ = res.LastInsertId()
+	return t.GetCustomerUser(u.ID)
+}
+
+func (t *Tx) GetCustomerUser(id int64) (CustomerUser, error) {
+	u, err := scanCustomerUser(t.tx.QueryRowContext(t.ctx, `SELECT `+customerUserCols+` FROM customer_users WHERE id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return u, ErrNotFound
+	}
+	return u, err
+}
+
+func (t *Tx) GetCustomerUserByLogin(login string) (CustomerUser, error) {
+	u, err := scanCustomerUser(t.tx.QueryRowContext(t.ctx, `SELECT `+customerUserCols+` FROM customer_users WHERE login=?`, strings.ToLower(strings.TrimSpace(login))))
+	if errors.Is(err, sql.ErrNoRows) {
+		return u, ErrNotFound
+	}
+	return u, err
+}
+
+func (t *Tx) ListCustomerUsers(customerID int64) ([]CustomerUser, error) {
+	rows, err := t.tx.QueryContext(t.ctx, `SELECT `+customerUserCols+` FROM customer_users WHERE customer_id=? ORDER BY login`, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []CustomerUser
+	for rows.Next() {
+		u, err := scanCustomerUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+func (t *Tx) UpdateCustomerUser(u CustomerUser) error {
+	status := "active"
+	if u.Disabled {
+		status = "disabled"
+	}
+	_, err := t.tx.ExecContext(t.ctx, `UPDATE customer_users SET display_name=?, password_hash=?, must_change_password=?, totp_secret=?, status=?, last_login_at=? WHERE id=?`,
+		u.DisplayName, u.PasswordHash, boolInt(u.MustChangePassword), u.TOTPSecret, status, nullTime(u.LastLoginAt), u.ID)
+	return err
+}
+
+func (t *Tx) InsertDeskSession(s DeskSession) error {
+	_, err := t.tx.ExecContext(t.ctx, `INSERT INTO desk_sessions(token_hash, user_id, csrf_token, totp_pending, expires_at, created_at, ip) VALUES (?,?,?,?,?,?,?)`,
+		s.TokenHash, s.UserID, s.CSRFToken, boolInt(s.TOTPPending), s.ExpiresAt.UTC().Format(time.RFC3339), Now(), s.IP)
+	return err
+}
+
+func (t *Tx) GetDeskSession(tokenHash string) (DeskSession, error) {
+	var s DeskSession
+	var exp string
+	var pending int
+	err := t.tx.QueryRowContext(t.ctx, `SELECT token_hash, user_id, csrf_token, totp_pending, expires_at, ip FROM desk_sessions WHERE token_hash=?`, tokenHash).Scan(&s.TokenHash, &s.UserID, &s.CSRFToken, &pending, &exp, &s.IP)
+	if errors.Is(err, sql.ErrNoRows) {
+		return s, ErrNotFound
+	}
+	if err != nil {
+		return s, err
+	}
+	s.TOTPPending = pending != 0
+	s.ExpiresAt, _ = time.Parse(time.RFC3339, exp)
+	return s, nil
+}
+
+func (t *Tx) SetDeskSessionVerified(tokenHash string) error {
+	_, err := t.tx.ExecContext(t.ctx, `UPDATE desk_sessions SET totp_pending=0 WHERE token_hash=?`, tokenHash)
+	return err
+}
+
+func (t *Tx) DeleteDeskSession(tokenHash string) error {
+	_, err := t.tx.ExecContext(t.ctx, `DELETE FROM desk_sessions WHERE token_hash=?`, tokenHash)
+	return err
+}
+
+// DeleteDeskSessionsForUser signs a user out everywhere (disable, password reset).
+func (t *Tx) DeleteDeskSessionsForUser(userID int64) error {
+	_, err := t.tx.ExecContext(t.ctx, `DELETE FROM desk_sessions WHERE user_id=?`, userID)
 	return err
 }
 

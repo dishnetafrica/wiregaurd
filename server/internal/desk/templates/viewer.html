@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Office.Name}} — DishNet</title>
+<link rel="stylesheet" href="/desk/static/desk.css">
+</head>
+<body class="viewer">
+<div class="bar">
+  <span class="brand">DishNet</span>
+  <span id="status" class="status">Connecting to {{.Office.Name}}…</span>
+  <span class="spacer"></span>
+  <button id="fit" class="small secondary" type="button">Fit to window</button>
+  <a id="disconnect" class="small btn" href="/desk/home">Disconnect</a>
+</div>
+<div id="display" data-ticket="{{.Ticket}}" tabindex="0"></div>
+<div id="overlay" class="overlay"><div class="msg" id="overlayMsg">Connecting…</div></div>
+<script type="module" src="/desk/static/app.js"></script>
+</body>
+</html>

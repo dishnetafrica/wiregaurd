@@ -121,7 +121,8 @@ Microsoft Remote Desktop from the App Store.
 | 2026-10-02 | Hub updated to server v0.6.2 (`dishnet-vpnd 2709028`), installer client-v0.4.2; manifest 0.4.2 / sha256 `e9dca30f…6cf56` / 55,823,708 bytes | ✔ verified from hub output |
 | 2026-10-02 | Office PC KISHAN re-activated as device #7 (10.20.0.70) on 0.4.1; dashboard shows **online**, handshake + heartbeat live. First handshake arrived 4.5 min after the peer was added (hub log 16:13:22 → wg 16:17:48 UTC); same delay seen on #6. Cause on the Windows/office side; WireGuard log now in diagnostics (0.4.2) | ✔ online, delay open |
 | — | KISHAN: Update now to 0.4.2; send Save diagnostics zip (includes wireguard-log.txt) to explain the slow first handshake | pending |
-| — | Bhavin MacBook as staff device (code issued) → Windows App RDP to 10.20.0.70 → Tally | pending |
+| 2026-10-02 | Bhavin MacBook activated as staff device #8 (10.20.0.71) under Kishan Bhai; tunnel up (hub ping 270 ms); `nc` to 10.20.0.70:3389 succeeded through the hub; Windows App credential dialog reached | ✔ path verified; Tally sign-in pending |
+| — | **Web desktop pilot (server v0.7.0):** DNS tally.dishnetuganda.com → hub; deploy with `DISHNET_DESK_DOMAIN`; dashboard → Kishan Bhai → Browser access on → add web user → temp password; on any browser: sign in → change password → Open my office computer → Windows login of KISHAN → desktop appears → Tally opens → Disconnect. Record: seconds to desktop, usability at Starlink latency, any error text. Then Security → switch on two-factor → sign in again with the code | pending |
 | — | Office gateway (Windows) + RDP from client | pending |
 | — | Revocation observed on a live tunnel | pending |
 

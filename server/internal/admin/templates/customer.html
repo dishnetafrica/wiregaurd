@@ -85,6 +85,48 @@
   {{end}}
 </div>
 
+<h2>Browser access — DishNet Web Desktop {{if $c.WebAccess}}<span class="badge ok">on</span>{{else}}<span class="badge muted">off</span>{{end}}</h2>
+{{if .NewUserPassword}}
+<div class="code-reveal">
+  <div class="muted">Temporary password for <strong>{{.NewUserLogin}}</strong> — shown once. Give it to that person only; they must change it at first sign-in.</div>
+  <div class="code">{{.NewUserPassword}}</div>
+  <div class="muted" style="margin-top:8px">Sign-in page: <span class="mono">{{.DeskURL}}</span></div>
+</div>
+{{end}}
+<div class="card">
+  <p class="muted" style="font-size:13px;margin-top:0">Staff open <span class="mono">{{.DeskURL}}</span> in any browser, sign in with the login below, type the office PC's Windows user name and password, and get the office desktop in the tab. Nothing to install; the hub connects to the office computer through the existing tunnel. The office app must be installed with Remote Desktop allowed, as usual.</p>
+  {{if .IsOperator}}
+  <form method="post" action="{{$back}}/webaccess" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}">
+    {{if $c.WebAccess}}<input type="hidden" name="enabled" value="no"><button class="small secondary" onclick="return confirm('Switch browser access off? All of this customer\'s web users are signed out.')">Switch browser access off</button>
+    {{else}}<input type="hidden" name="enabled" value="yes"><button class="small">Switch browser access on</button>{{end}}
+  </form>
+  {{end}}
+  <table style="margin-top:12px"><tr><th>Login</th><th>Name</th><th>Two-factor</th><th>Status</th><th>Last sign-in</th><th></th></tr>
+  {{range .WebUsers}}<tr>
+    <td class="mono">{{.Login}}</td><td>{{.DisplayName}}</td>
+    <td>{{if .TOTPSecret}}<span class="badge ok">on</span>{{else}}<span class="badge muted">off</span>{{end}}{{if .MustChangePassword}} <span class="badge warn" title="Temporary password not yet changed">temp password</span>{{end}}</td>
+    <td>{{if .Disabled}}<span class="badge bad">disabled</span>{{else}}<span class="badge ok">active</span>{{end}}</td>
+    <td>{{ago .LastLoginAt}}</td>
+    <td class="right">{{if $.IsOperator}}
+      <form method="post" action="/admin/webusers/{{.ID}}/reset" class="inline" onsubmit="return confirm('Reset the password for {{.Login}}? They are signed out everywhere.')"><input type="hidden" name="csrf" value="{{$csrf}}"><button class="small secondary">Reset password</button></form>
+      <form method="post" action="/admin/webusers/{{.ID}}/disable" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="disabled" value="{{if .Disabled}}no{{else}}yes{{end}}"><button class="small secondary">{{if .Disabled}}Enable{{else}}Disable{{end}}</button></form>
+      {{if .TOTPSecret}}<form method="post" action="/admin/webusers/{{.ID}}/clear-2fa" class="inline" onsubmit="return confirm('Clear two-factor for {{.Login}} (lost phone)?')"><input type="hidden" name="csrf" value="{{$csrf}}"><button class="small secondary">Clear 2FA</button></form>{{end}}
+    {{end}}</td>
+  </tr>{{else}}<tr><td colspan="6" class="muted">No web users yet.</td></tr>{{end}}
+  </table>
+  {{if .IsOperator}}
+  <form method="post" action="{{$back}}/webusers" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <div class="grid">
+      <div><label>New login (e.g. grace.kampala)</label><input name="login" maxlength="40" required placeholder="letters, digits, dot, dash"></div>
+      <div><label>Person's name</label><input name="display_name" maxlength="60" placeholder="e.g. Grace Nakato"></div>
+    </div>
+    <button class="small" style="margin-top:8px">Add web user</button>
+    <span class="muted" style="font-size:13px;margin-left:10px">A temporary password is shown once; the person chooses their own at first sign-in. Never ask for their Windows password.</span>
+  </form>
+  {{end}}
+</div>
+
 <h2>Support notes</h2>
 <div class="card">
   {{if .IsOperator}}

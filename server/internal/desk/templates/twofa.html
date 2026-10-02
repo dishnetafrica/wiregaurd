@@ -1,0 +1,12 @@
+{{template "header" .}}
+<div class="box">
+  <h1>Enter the code from your authenticator app</h1>
+  <p class="muted">Open the authenticator app on your phone and type the 6-digit code shown for DishNet.</p>
+  <form method="post" action="/desk/2fa">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>Code</label><input name="code" inputmode="numeric" pattern="[0-9 ]*" autocomplete="one-time-code" autofocus required>
+    <button>Continue</button>
+  </form>
+  <p class="muted small">Lost your phone? Ask DishNet to switch two-factor off for your login.</p>
+</div>
+{{template "footer" .}}

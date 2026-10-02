@@ -46,8 +46,35 @@ type Customer struct {
 	DefaultPorts          []int // ports opened from clients to a newly registered gateway
 	VPNBlock              netip.Prefix
 	PoolID                int64
+	WebAccess             bool // browser access to the office computer (DishNet Web Desktop) enabled
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
+}
+
+// CustomerUser is a person at a customer who signs in to the web desktop.
+// Never a Windows account: the Windows credentials are typed per session and
+// are not stored.
+type CustomerUser struct {
+	ID                 int64
+	CustomerID         int64
+	Login              string
+	DisplayName        string
+	PasswordHash       string
+	MustChangePassword bool
+	TOTPSecret         string // base32; "" = two-factor off
+	Disabled           bool
+	CreatedBy          string
+	CreatedAt          time.Time
+	LastLoginAt        time.Time
+}
+
+type DeskSession struct {
+	TokenHash   string
+	UserID      int64
+	CSRFToken   string
+	TOTPPending bool
+	ExpiresAt   time.Time
+	IP          string
 }
 
 // Expired reports whether the subscription has lapsed at time t.

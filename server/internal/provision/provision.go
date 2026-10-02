@@ -666,16 +666,17 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 			}
 			sort.Ints(cfg.GatewayPorts)
 		}
-		// The hub's own address is always routed so a client can `ping
-		// 10.20.0.1` as a connectivity check; the hub firewall allows only
-		// ICMP echo to itself, nothing else.
+		// The hub's own address is always routed: a client can `ping
+		// 10.20.0.1` as a connectivity check (the hub firewall allows only
+		// ICMP echo to itself), and an office computer must accept the
+		// hub's Remote Desktop connections made on behalf of web desktop users.
 		if d.Role == store.RoleClient {
 			if ob, err := tx.GetOnboarding(c.ID); err == nil {
 				cfg.TallyCompany = ob.TallyCompany
 			}
-			for _, h := range s.cfg.HubAddresses {
-				allowed = append([]netip.Prefix{netip.PrefixFrom(h, 32)}, allowed...)
-			}
+		}
+		for _, h := range s.cfg.HubAddresses {
+			allowed = append([]netip.Prefix{netip.PrefixFrom(h, 32)}, allowed...)
 		}
 		for _, a := range allowed {
 			cfg.AllowedIPs = append(cfg.AllowedIPs, a.String())

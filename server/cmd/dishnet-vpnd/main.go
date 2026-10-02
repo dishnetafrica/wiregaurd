@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -32,6 +33,7 @@ import (
 	"github.com/dishnetafrica/wiregaurd/server/internal/admin"
 	"github.com/dishnetafrica/wiregaurd/server/internal/api"
 	"github.com/dishnetafrica/wiregaurd/server/internal/auth"
+	"github.com/dishnetafrica/wiregaurd/server/internal/desk"
 	"github.com/dishnetafrica/wiregaurd/server/internal/firewall"
 	"github.com/dishnetafrica/wiregaurd/server/internal/provision"
 	"github.com/dishnetafrica/wiregaurd/server/internal/store"
@@ -56,6 +58,8 @@ type Config struct {
 	InstallerPath string        // DISHNET_INSTALLER_PATH default /var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe
 	NotifyWebhook string        // DISHNET_NOTIFY_WEBHOOK optional URL that receives JSON for new trial requests
 	SupportText   string        // DISHNET_SUPPORT_CONTACT shown on public pages, e.g. "WhatsApp 0705 993 348"
+	GuacdAddr     string        // DISHNET_GUACD           guacd address for the web desktop, default 127.0.0.1:4822
+	DeskURL       string        // DISHNET_DESK_URL        public address of the web desktop, default https://tally.dishnetuganda.com
 }
 
 func loadConfig() Config {
@@ -76,6 +80,7 @@ func loadConfig() Config {
 		Reconcile: rec, InsecureCooks: os.Getenv("DISHNET_INSECURE_COOKIES") == "true",
 		PublicURL: get("DISHNET_PUBLIC_URL", "https://vpn.dishnetuganda.com"), InstallerPath: get("DISHNET_INSTALLER_PATH", "/var/lib/dishnet/installer/DishNetSecureConnect-Setup.exe"),
 		NotifyWebhook: os.Getenv("DISHNET_NOTIFY_WEBHOOK"), SupportText: os.Getenv("DISHNET_SUPPORT_CONTACT"),
+		GuacdAddr: get("DISHNET_GUACD", "127.0.0.1:4822"), DeskURL: get("DISHNET_DESK_URL", "https://tally.dishnetuganda.com"),
 	}
 }
 
@@ -180,9 +185,17 @@ func serve(cfg Config, log *slog.Logger) error {
 	if len(allow) == 0 {
 		log.Warn("DISHNET_ADMIN_ALLOW is empty: the dashboard is reachable from any address (still password protected)")
 	}
-	adminH, err := admin.New(svc, log, admin.Options{Allowlist: allow, TrustProxy: cfg.TrustProxy, SecureCookies: !cfg.InsecureCooks, PublicURL: cfg.PublicURL})
+	adminH, err := admin.New(svc, log, admin.Options{Allowlist: allow, TrustProxy: cfg.TrustProxy, SecureCookies: !cfg.InsecureCooks, PublicURL: cfg.PublicURL, DeskURL: cfg.DeskURL})
 	if err != nil {
 		return err
+	}
+	deskH, err := desk.New(svc, log, desk.Options{TrustProxy: cfg.TrustProxy, SecureCookies: !cfg.InsecureCooks, GuacdAddr: cfg.GuacdAddr, SupportContact: cfg.SupportText, DeskURL: cfg.DeskURL})
+	if err != nil {
+		return err
+	}
+	deskHost := ""
+	if u, err := url.Parse(cfg.DeskURL); err == nil {
+		deskHost = u.Host
 	}
 	mux := http.NewServeMux()
 	api.New(svc, log, cfg.TrustProxy).Register(mux)
@@ -194,8 +207,13 @@ func serve(cfg Config, log *slog.Logger) error {
 		svc.SetNotifier(&provision.WebhookNotifier{URL: cfg.NotifyWebhook})
 	}
 	adminH.Register(mux)
+	deskH.Register(mux)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
+			if deskHost != "" && strings.EqualFold(r.Host, deskHost) {
+				http.Redirect(w, r, "/desk", http.StatusFound) // the web desktop's own domain lands on the sign-in page
+				return
+			}
 			http.Redirect(w, r, "/admin", http.StatusFound)
 			return
 		}

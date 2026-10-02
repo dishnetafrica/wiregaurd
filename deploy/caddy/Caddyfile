@@ -27,3 +27,36 @@ __DOMAIN__ {
 		format json
 	}
 }
+
+# DishNet Web Desktop (Tally in the browser). __DESK_DOMAIN__ is replaced by
+# deploy/install.sh with $DISHNET_DESK_DOMAIN; the whole block is removed when
+# that variable is empty. Same Go process; it serves /desk on this host.
+__DESK_DOMAIN__ {
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	redir / /desk 302
+
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+		# WebSocket upgrade for the desktop stream; sessions last hours.
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+
+	log {
+		output file /var/log/caddy/dishnet-desk-access.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+		format json
+	}
+}

@@ -24,6 +24,11 @@ APPLY=0
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 WG_IF=${DISHNET_WG_INTERFACE:-wg0}
 DOMAIN=${DISHNET_DOMAIN:-}
+# Web desktop domain: given explicitly, else remembered from the env file of a previous install.
+DESK_DOMAIN=${DISHNET_DESK_DOMAIN:-}
+if [[ -z "$DESK_DOMAIN" && -f /etc/dishnet/dishnet-vpnd.env ]]; then
+  DESK_DOMAIN=$(sed -n 's#^DISHNET_DESK_URL=https\?://\([^/]*\).*#\1#p' /etc/dishnet/dishnet-vpnd.env | head -1)
+fi
 ADMIN_ALLOW=${DISHNET_ADMIN_ALLOW:-}
 ENDPOINT=${DISHNET_WG_ENDPOINT:-165.227.89.92:51820}
 BIN_SRC=${DISHNET_BIN:-}
@@ -60,6 +65,7 @@ if [[ $APPLY -eq 1 ]]; then bash "$REPO/deploy/preflight.sh" > "/tmp/dishnet-pre
 say "## 2. Packages (nftables, caddy, sqlite3)"
 need=()
 for p in nftables sqlite3; do dpkg -s "$p" >/dev/null 2>&1 || need+=("$p"); done
+if [[ -n "$DESK_DOMAIN" ]]; then dpkg -s guacd >/dev/null 2>&1 || need+=(guacd); fi
 if ! command -v caddy >/dev/null; then need+=(caddy); fi
 if [[ ${#need[@]} -gt 0 ]]; then
   if printf '%s\n' "${need[@]}" | grep -q caddy && ! apt-cache show caddy >/dev/null 2>&1; then
@@ -152,6 +158,16 @@ chmod 0640 /etc/dishnet/dishnet-vpnd.env; chgrp dishnet /etc/dishnet/dishnet-vpn
 else
   say "  /etc/dishnet/dishnet-vpnd.env exists — left unchanged"
 fi
+if [[ -n "$DESK_DOMAIN" ]]; then
+  if ! grep -q '^DISHNET_DESK_URL=' /etc/dishnet/dishnet-vpnd.env 2>/dev/null; then
+    run bash -c "printf 'DISHNET_DESK_URL=https://$DESK_DOMAIN\nDISHNET_GUACD=127.0.0.1:4822\n' >> /etc/dishnet/dishnet-vpnd.env"
+  fi
+  # guacd: Apache Guacamole's engine, loopback only; dishnet-vpnd is its only client.
+  run install -d -m 0755 /etc/guacamole
+  run bash -c "printf '[server]\nbind_host = 127.0.0.1\nbind_port = 4822\n' > /etc/guacamole/guacd.conf"
+  run systemctl enable guacd
+  run systemctl restart guacd
+fi
 run install -m 0644 "$REPO/deploy/systemd/dishnet-vpnd.service" /etc/systemd/system/dishnet-vpnd.service
 run systemctl daemon-reload
 run systemctl enable dishnet-vpnd
@@ -160,11 +176,16 @@ run systemctl enable dishnet-vpnd
 say "## 8. Caddy (TLS for $DOMAIN -> 127.0.0.1:8080)"
 if [[ $APPLY -eq 1 ]]; then
   [[ -f /etc/caddy/Caddyfile ]] && cp /etc/caddy/Caddyfile "$BK/Caddyfile.before"
-  sed "s/__DOMAIN__/$DOMAIN/" "$REPO/deploy/caddy/Caddyfile" > /etc/caddy/Caddyfile
+  if [[ -n "$DESK_DOMAIN" ]]; then
+    sed -e "s/__DOMAIN__/$DOMAIN/" -e "s/__DESK_DOMAIN__/$DESK_DOMAIN/" "$REPO/deploy/caddy/Caddyfile" > /etc/caddy/Caddyfile
+  else
+    # drop the web desktop site block entirely
+    awk '/^__DESK_DOMAIN__ \{/{skip=1} skip&&/^\}/{skip=0; next} !skip' "$REPO/deploy/caddy/Caddyfile" | sed -e '/__DESK_DOMAIN__/d' -e "s/__DOMAIN__/$DOMAIN/" > /etc/caddy/Caddyfile
+  fi
   caddy validate --config /etc/caddy/Caddyfile >/dev/null
   systemctl enable caddy; systemctl restart caddy
 else
-  plan "write /etc/caddy/Caddyfile for ${DOMAIN:-<DISHNET_DOMAIN>} and restart caddy"
+  plan "write /etc/caddy/Caddyfile for ${DOMAIN:-<DISHNET_DOMAIN>}${DESK_DOMAIN:+ + web desktop $DESK_DOMAIN} and restart caddy"
 fi
 
 # ---------- 9. start + validate ----------

@@ -101,8 +101,8 @@ func TestActivationProvisionsPeerAndReturnsConfig(t *testing.T) {
 	if !h.hasPeer(gw.Device.PublicKey) || !h.hasPeer(cl.Device.PublicKey) {
 		t.Fatal("peers not on hub")
 	}
-	// Gateway routes the whole customer block back through the tunnel and learns which ports to open locally.
-	if len(gw.Config.AllowedIPs) != 1 || gw.Config.AllowedIPs[0] != "10.20.0.16/28" {
+	// Gateway routes the hub (web desktop connections) and the whole customer block back through the tunnel, and learns which ports to open locally.
+	if len(gw.Config.AllowedIPs) != 2 || gw.Config.AllowedIPs[0] != "10.20.0.1/32" || gw.Config.AllowedIPs[1] != "10.20.0.16/28" {
 		t.Fatalf("gateway allowed ips %v", gw.Config.AllowedIPs)
 	}
 	gwCfg, _ := h.svc.ConfigFor(h.ctx, gw.Device.ID)

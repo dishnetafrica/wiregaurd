@@ -108,8 +108,15 @@ const (
 )
 
 func HashPassword(password string) (string, error) {
-	if len(password) < 12 {
-		return "", errors.New("password must be at least 12 characters")
+	return HashPasswordMin(password, 12)
+}
+
+// HashPasswordMin hashes with a caller-chosen minimum length. Customer web
+// desktop users get 10 (rate limiting and optional two-factor compensate);
+// administrators keep 12.
+func HashPasswordMin(password string, min int) (string, error) {
+	if len(password) < min {
+		return "", fmt.Errorf("password must be at least %d characters", min)
 	}
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {

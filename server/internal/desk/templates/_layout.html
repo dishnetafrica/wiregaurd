@@ -1,0 +1,24 @@
+{{define "header"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DishNet — Your office computer</title>
+<link rel="stylesheet" href="/desk/static/desk.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">DishNet <span>Secure Connect</span></div>
+  {{if .User}}<nav><a href="/desk/home">My office</a><a href="/desk/security">Security</a><a href="/desk/password">Password</a></nav>
+  <form method="post" action="/desk/logout" class="who"><input type="hidden" name="csrf" value="{{.CSRF}}"><span>{{if .User.DisplayName}}{{.User.DisplayName}}{{else}}{{.User.Login}}{{end}} · {{.Customer.Name}}</span><button>Sign out</button></form>{{end}}
+</header>
+<main>
+{{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+{{end}}
+{{define "footer"}}
+</main>
+<footer class="bottom">DishNet support: {{if .Support}}{{.Support}}{{else}}contact your DishNet representative{{end}} · Encrypted · Your Tally data stays on your office computer</footer>
+</body>
+</html>
+{{end}}

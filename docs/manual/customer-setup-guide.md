@@ -154,7 +154,29 @@ Or start at the top of this table and stop at the first line that matches what y
 
 Tally itself behaves exactly as it does at the office. Tally questions (licences, company files, errors inside Tally) are for your Tally provider; DishNet supports the connection and Remote Desktop.
 
-## 11. Several people at the same time
+## 11. Tally in your browser — no app needed (DishNet Web Desktop)
+
+If DishNet has switched on **browser access** for your business, staff do not
+need the DishNet app or Remote Desktop at all:
+
+1. Open **https://tally.dishnetuganda.com** in any browser (Windows, Mac,
+   Chromebook, tablet).
+2. Sign in with the login and password DishNet gave you. The first time, you
+   choose your own password. This is *not* your Windows or Tally password.
+3. Click **Open my office computer**. Type the **Windows** user name and
+   password of the office computer (the same as at the office). DishNet does
+   not store them.
+4. The office desktop appears in the tab. Open Tally there as usual. When you
+   finish: close the company in Tally, then click **Disconnect** at the top.
+
+Recommended: on the **Security** page, switch on two-factor sign-in with an
+authenticator app on your phone. Lost the phone? Ask DishNet to switch it off
+for your login.
+
+The office computer must still be on and online with the DishNet app showing
+Connected, exactly as for the app.
+
+## 12. Several people at the same time
 
 A standard Windows 10/11 Pro office computer lets **one person at a time**
 work through Remote Desktop. If a colleague is already working, Windows asks
@@ -166,7 +188,7 @@ Windows Server with Remote Desktop Services, its licensing (per user), and
 how your Tally is configured for multiple users. Ask DishNet before planning
 on it.
 
-## 12. Security tips and support
+## 13. Security tips and support
 
 - Never share your activation code or install link; each works once per computer.
 - Never give your Windows or Tally password to anyone — DishNet will never ask for it.

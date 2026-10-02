@@ -44,9 +44,11 @@ type Handler struct {
 	loginLimit *ratelimit.Limiter
 	secure     bool
 	publicURL  string
+	deskURL    string
 }
 
 type Options struct {
+	DeskURL       string         // public address of the web desktop, e.g. https://tally.dishnetuganda.com
 	Allowlist     []netip.Prefix // empty = any source
 	TrustProxy    bool
 	SecureCookies bool   // false only for local dry-run over plain HTTP
@@ -98,7 +100,7 @@ func New(svc *provision.Service, log *slog.Logger, opt Options) (*Handler, error
 		return nil, err
 	}
 	return &Handler{svc: svc, db: svc.DB(), log: log, tmpl: tmpl, allow: opt.Allowlist, trustProxy: opt.TrustProxy,
-		loginLimit: ratelimit.New(10, 15*time.Minute), secure: opt.SecureCookies, publicURL: strings.TrimRight(opt.PublicURL, "/")}, nil
+		loginLimit: ratelimit.New(10, 15*time.Minute), secure: opt.SecureCookies, publicURL: strings.TrimRight(opt.PublicURL, "/"), deskURL: strings.TrimRight(opt.DeskURL, "/")}, nil
 }
 
 func (h *Handler) Register(mux *http.ServeMux) {
@@ -114,6 +116,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/customers/{id}/status", h.gate(h.requireRole(store.AdminOperator, h.customerStatus)))
 	mux.HandleFunc("POST /admin/customers/{id}/extend", h.gate(h.requireRole(store.AdminOperator, h.extendCustomer)))
 	mux.HandleFunc("POST /admin/customers/{id}/onboarding", h.gate(h.requireRole(store.AdminOperator, h.updateOnboarding)))
+	mux.HandleFunc("POST /admin/customers/{id}/webaccess", h.gate(h.requireRole(store.AdminOperator, h.setWebAccess)))
+	mux.HandleFunc("POST /admin/customers/{id}/webusers", h.gate(h.requireRole(store.AdminOperator, h.createWebUser)))
+	mux.HandleFunc("POST /admin/webusers/{id}/reset", h.gate(h.requireRole(store.AdminOperator, h.resetWebUser)))
+	mux.HandleFunc("POST /admin/webusers/{id}/disable", h.gate(h.requireRole(store.AdminOperator, h.disableWebUser)))
+	mux.HandleFunc("POST /admin/webusers/{id}/clear-2fa", h.gate(h.requireRole(store.AdminOperator, h.clearWebUserTOTP)))
 	mux.HandleFunc("POST /admin/customers/{id}/notes", h.gate(h.requireRole(store.AdminOperator, h.addNote)))
 	mux.HandleFunc("GET /admin/customers/{id}/support", h.gate(h.requireRole(store.AdminViewer, h.supportView)))
 	mux.HandleFunc("POST /admin/customers/{id}/codes", h.gate(h.requireRole(store.AdminOperator, h.createCode)))
@@ -479,12 +486,18 @@ func (h *Handler) customer(w http.ResponseWriter, r *http.Request) {
 		data["Onboarding"], _ = tx.GetOnboarding(id)
 		data["PilotChecks"] = onboarding.PilotChecks
 		data["Notes"], _ = tx.ListSupportNotes(id, 20)
+		data["WebUsers"], _ = tx.ListCustomerUsers(id)
+		data["DeskURL"] = h.deskURL
 		data["GuideURL"] = h.publicURL + "/guide"
 		return nil
 	})
 	if err != nil {
 		http.NotFound(w, r)
 		return
+	}
+	if pw := r.URL.Query().Get("userpw"); pw != "" {
+		data["NewUserPassword"] = pw // shown exactly once, straight from the redirect
+		data["NewUserLogin"] = r.URL.Query().Get("userlogin")
 	}
 	if code := r.URL.Query().Get("code"); code != "" {
 		data["NewCode"] = code // shown exactly once, straight from the redirect
@@ -751,6 +764,86 @@ func (h *Handler) updateOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectFlash(w, r, back, "Onboarding updated")
+}
+
+// ---------- web desktop (browser access) ----------
+
+func (h *Handler) setWebAccess(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/admin/customers/%d", id)
+	if err := h.svc.SetWebAccess(r.Context(), id, r.FormValue("enabled") == "yes", s.admin.Email); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectFlash(w, r, back, "Browser access updated")
+}
+
+func (h *Handler) createWebUser(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/admin/customers/%d", id)
+	u, temp, err := h.svc.CreateCustomerUser(r.Context(), id, r.FormValue("login"), r.FormValue("display_name"), s.admin.Email)
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	http.Redirect(w, r, back+"?userlogin="+template.URLQueryEscaper(u.Login)+"&userpw="+template.URLQueryEscaper(temp), http.StatusSeeOther)
+}
+
+// webUserBack resolves the customer page for a user id, refusing ids that do not exist.
+func (h *Handler) webUserBack(r *http.Request) (store.CustomerUser, string, error) {
+	id, _ := pathID(r)
+	var u store.CustomerUser
+	err := h.db.View(r.Context(), func(tx *store.Tx) error {
+		var err error
+		u, err = tx.GetCustomerUser(id)
+		return err
+	})
+	return u, fmt.Sprintf("/admin/customers/%d", u.CustomerID), err
+}
+
+func (h *Handler) resetWebUser(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	u, back, err := h.webUserBack(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	temp, err := h.svc.ResetCustomerUserPassword(r.Context(), u.ID, s.admin.Email)
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	http.Redirect(w, r, back+"?userlogin="+template.URLQueryEscaper(u.Login)+"&userpw="+template.URLQueryEscaper(temp), http.StatusSeeOther)
+}
+
+func (h *Handler) disableWebUser(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	u, back, err := h.webUserBack(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := h.svc.SetCustomerUserDisabled(r.Context(), u.ID, r.FormValue("disabled") == "yes", s.admin.Email); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectFlash(w, r, back, "User updated")
+}
+
+func (h *Handler) clearWebUserTOTP(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	u, back, err := h.webUserBack(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := h.svc.ClearCustomerUserTOTP(r.Context(), u.ID, s.admin.Email); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectFlash(w, r, back, "Two-factor cleared; the user can enrol again")
 }
 
 func atoiDefault(s string, def int) int {

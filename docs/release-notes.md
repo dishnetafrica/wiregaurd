@@ -8,6 +8,48 @@ publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
+## Server v0.7.0 — 2026-10-02 (DishNet Web Desktop: Tally in the browser)
+
+No client change; 0.4.2 stays current.
+
+- **Web desktop** at `https://tally.dishnetuganda.com`: sign in, click *Open
+  my office computer*, type the office PC's Windows login once, and the office
+  desktop (Tally) appears in the browser tab. Nothing to install on staff
+  devices. Design and security model: `docs/phase5-web-desktop.md`.
+- Dashboard: *Browser access* card per customer (switch on/off, web users
+  with temporary passwords shown once, reset, disable, clear two-factor).
+- Optional two-factor sign-in (authenticator app) per user.
+- Migration `0007_webdesk`: `customers.web_access`, `customer_users`,
+  `desk_sessions`; bumps active office computers' config version once so
+  their tunnel also routes the hub address (needed for the hub's connections).
+  Existing devices, policies and customers are otherwise untouched.
+- New hub dependency: `guacd` (Ubuntu package), loopback only.
+
+Verified: `go vet`, `go test -race ./...` (8 packages, 46 tests, including a
+protocol-faithful fake guacd), build. Real RDP through guacd is verified in
+the pilot (`docs/pilot-test.md`).
+
+### Deploy (hub, as root) — DNS first
+
+1. Add DNS: `tally.dishnetuganda.com` A → `165.227.89.92`. Wait until
+   `dig +short tally.dishnetuganda.com` shows it.
+2. Then:
+
+```bash
+cd /root/wiregaurd && git pull
+export DISHNET_DESK_DOMAIN=tally.dishnetuganda.com
+sudo -E bash deploy/update-server.sh v0.7.0
+systemctl status guacd --no-pager | head -3
+curl -sI https://tally.dishnetuganda.com/ | head -1
+```
+Expected: `downloaded v0.7.0 …`, `guacd … active (running)`, and
+`HTTP/2 302` (redirect to the sign-in page).
+
+### Rollback
+
+`sudo bash deploy/update-server.sh v0.6.2` (tables from 0007 stay, unused).
+`systemctl disable --now guacd` is optional.
+
 ## Server v0.6.2 / client 0.4.2 — 2026-10-02 (clean-up and better diagnostics)
 
 - **Server v0.6.2:** migration `0006_prune_dead_policies` deletes policies

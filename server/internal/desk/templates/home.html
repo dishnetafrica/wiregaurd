@@ -1,0 +1,24 @@
+{{template "header" .}}
+<h1>Your office computer</h1>
+{{if .NoOffice}}
+<div class="card"><strong>No office computer is set up yet.</strong><p class="muted">DishNet has not registered your office computer, or Remote Desktop is not allowed on it yet. Contact DishNet.</p></div>
+{{else}}
+<div class="card office">
+  <div>
+    <div class="name">{{.Office.Name}}</div>
+    <div class="muted">{{if .OfficeOnline}}<span class="dot ok"></span> Online — ready to use{{else}}<span class="dot bad"></span> Not online — switch the office computer on and check the DishNet app there shows Connected{{end}}</div>
+  </div>
+  <a class="btn" href="/desk/office">Open my office computer</a>
+</div>
+<div class="card">
+  <h2>How it works</h2>
+  <ol>
+    <li>Click <strong>Open my office computer</strong>.</li>
+    <li>Type the Windows user name and password you use on that computer. DishNet does not store them.</li>
+    <li>The office desktop appears in this tab. Open Tally there, as at the office.</li>
+    <li>When you finish: close the company in Tally, then click <strong>Disconnect</strong> at the top.</li>
+  </ol>
+  <p class="muted small">One person at a time can use a normal Windows PC. If a colleague is working on it, Windows will ask whether to disconnect them.</p>
+</div>
+{{end}}
+{{template "footer" .}}

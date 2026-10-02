@@ -246,3 +246,34 @@ func onboardingChecks() []string {
 	}
 	return keys
 }
+
+func TestWebUsersAdmin(t *testing.T) {
+	srv, svc := setup(t, nil)
+	ctx := context.Background()
+	a, _ := svc.CreateCustomer(ctx, provision.NewCustomer{Name: "Web Ltd", DefaultPorts: []int{3389}})
+	owner := client(t)
+	csrf := login(t, owner, srv.URL, "owner@dishnet.test")
+	res, _ := owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/webaccess", srv.URL, a.ID), url.Values{"csrf": {csrf}, "enabled": {"yes"}})
+	if res.StatusCode != 303 || strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatalf("enable web access: %d %s", res.StatusCode, res.Header.Get("Location"))
+	}
+	res, _ = owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/webusers", srv.URL, a.ID), url.Values{"csrf": {csrf}, "login": {"Grace.Web"}, "display_name": {"Grace"}})
+	loc := res.Header.Get("Location")
+	if res.StatusCode != 303 || !strings.Contains(loc, "userpw=") || !strings.Contains(loc, "userlogin=grace.web") {
+		t.Fatalf("create web user: %d %s", res.StatusCode, loc)
+	}
+	page, _ := owner.Get(srv.URL + loc)
+	b, _ := io.ReadAll(page.Body)
+	if !strings.Contains(string(b), "shown once") || !strings.Contains(string(b), "grace.web") || !strings.Contains(string(b), "Browser access") {
+		t.Fatal("temp password reveal or web access card missing")
+	}
+	// Bad login rejected; viewer cannot manage web users.
+	if res, _ := owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/webusers", srv.URL, a.ID), url.Values{"csrf": {csrf}, "login": {"x"}}); !strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatal("short login must be refused")
+	}
+	viewer := client(t)
+	vcsrf := login(t, viewer, srv.URL, "viewer@dishnet.test")
+	if res, _ := viewer.PostForm(fmt.Sprintf("%s/admin/customers/%d/webusers", srv.URL, a.ID), url.Values{"csrf": {vcsrf}, "login": {"eve.web"}}); res.StatusCode != 403 {
+		t.Fatalf("viewer created a web user: %d", res.StatusCode)
+	}
+}

@@ -1,0 +1,15 @@
+{{template "header" .}}
+<div class="box">
+  <h1>Sign in to {{.Office.Name}}</h1>
+  {{if not .OfficeOnline}}<div class="error">The office computer is not online right now. It must be switched on, with the DishNet app showing Connected. You can still try.</div>{{end}}
+  <p class="muted">Type the <strong>Windows</strong> user name and password you use on the office computer itself. They are used for this session only and are not stored by DishNet.</p>
+  <form method="post" action="/desk/office" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>Windows user name</label><input name="winuser" autocomplete="off" autocapitalize="none" autofocus required>
+    <label>Windows password</label><input name="winpass" type="password" autocomplete="off" required>
+    <button>Open the office desktop</button>
+    <a class="link" href="/desk/home">Back</a>
+  </form>
+  <p class="muted small">Wrong user name or password is the most common problem; it is the account on the office PC, not your DishNet login. The account must have a password. Your office IT contact can reset it; DishNet cannot.</p>
+</div>
+{{template "footer" .}}
