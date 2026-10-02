@@ -118,7 +118,10 @@ Microsoft Remote Desktop from the App Store.
 | 2026-10-02 | Office PC KISHAN on 0.3.1 (screenshot): in-place update kept activation + paid plan (to 31 Oct 2028); owner clicked Allow (RDP enabled, firewall 3389 only); device #6 at 10.20.0.69. **Tunnel stuck at "Waiting for handshake"** — hub-side peer / UDP check pending | ✖ open |
 | 2026-10-02 | Dashboard shows KISHAN registered 5× (10.20.0.65–.69; 2× 0.2.1, 2× 0.2.3, 1× 0.3.1) with 3 duplicate default policies; gateway code 5/5 used. Cause: uninstall deleted identity → reinstall from link re-activated. Fixed in server v0.6.1 (same-name gateway re-activation replaces the old record; revoke deletes its policies) and client 0.4.1 (uninstall keeps identity) | ✔ root-caused, fixed |
 | 2026-10-02 | Hub updated to server v0.6.1 (`dishnet-vpnd 7dd15c2`), installer cache client-v0.4.1; `/api/v1/client/latest` = 0.4.1 / sha256 `118d7911…bc350` / 55,822,768 bytes | ✔ verified from hub output |
-| — | Office PC KISHAN: Update now to 0.4.x; edition reported to dashboard; stays Connected | pending |
+| 2026-10-02 | Hub updated to server v0.6.2 (`dishnet-vpnd 2709028`), installer client-v0.4.2; manifest 0.4.2 / sha256 `e9dca30f…6cf56` / 55,823,708 bytes | ✔ verified from hub output |
+| 2026-10-02 | Office PC KISHAN re-activated as device #7 (10.20.0.70) on 0.4.1; dashboard shows **online**, handshake + heartbeat live. First handshake arrived 4.5 min after the peer was added (hub log 16:13:22 → wg 16:17:48 UTC); same delay seen on #6. Cause on the Windows/office side; WireGuard log now in diagnostics (0.4.2) | ✔ online, delay open |
+| — | KISHAN: Update now to 0.4.2; send Save diagnostics zip (includes wireguard-log.txt) to explain the slow first handshake | pending |
+| — | Bhavin MacBook as staff device (code issued) → Windows App RDP to 10.20.0.70 → Tally | pending |
 | — | Office gateway (Windows) + RDP from client | pending |
 | — | Revocation observed on a live tunnel | pending |
 
