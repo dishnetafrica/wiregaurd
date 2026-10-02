@@ -19,15 +19,15 @@
 </div>
 {{end}}
 <div class="card">
-<table><tr><th>Name</th><th>Contact</th><th>Status</th><th>Plan</th><th>Expires</th><th>Limit</th><th>Block</th></tr>
+<table><tr><th>Name</th><th>Contact</th><th>Status</th><th>Plan</th><th>Expires</th><th>Onboarding</th><th>Next action</th></tr>
 {{range .Customers}}<tr>
   <td><a href="/admin/customers/{{.ID}}">{{.Name}}</a></td>
   <td>{{.Contact}}</td>
   <td>{{if eq .Status "active"}}<span class="badge ok">active</span>{{else}}<span class="badge bad">suspended</span>{{end}}</td>
   <td>{{.Plan}}</td>
   <td>{{date .SubscriptionExpiresAt}}</td>
-  <td>{{.DeviceLimit}}</td>
-  <td class="mono">{{.VPNBlock}}</td>
+  <td>{{if eq .Done .Total}}<span class="badge ok">complete</span>{{else}}<span class="badge warn">{{.Done}} / {{.Total}}</span>{{end}}</td>
+  <td class="muted" style="font-size:13px">{{.Next}} <span class="badge muted">{{.Owner}}</span></td>
 </tr>{{else}}<tr><td colspan="7" class="muted">No customers yet.</td></tr>{{end}}
 </table>
 </div>

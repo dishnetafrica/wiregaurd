@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -134,5 +135,58 @@ func TestIPAllowlist(t *testing.T) {
 	res, _ := http.Get(srv.URL + "/admin/login")
 	if res.StatusCode != 403 {
 		t.Fatalf("loopback should be refused by allowlist, got %d", res.StatusCode)
+	}
+}
+
+func TestOnboardingPermissionsAndIsolation(t *testing.T) {
+	srv, svc := setup(t, nil)
+	ctx := context.Background()
+	a, _ := svc.CreateCustomer(ctx, provision.NewCustomer{Name: "Customer A", DefaultPorts: []int{3389}})
+	b, _ := svc.CreateCustomer(ctx, provision.NewCustomer{Name: "Customer B", DefaultPorts: []int{3389}})
+
+	owner := client(t)
+	csrf := login(t, owner, srv.URL, "owner@dishnet.test")
+	// Operator/owner records onboarding facts and a note on A.
+	res, _ := owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/onboarding", srv.URL, a.ID), url.Values{"csrf": {csrf}, "office_edition": {"home"}, "readiness": {"needs_attention"}, "readiness_note": {"Home edition; advised Pro upgrade"}})
+	if res.StatusCode != 303 || strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatalf("onboarding update: %d %s", res.StatusCode, res.Header.Get("Location"))
+	}
+	res, _ = owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/notes", srv.URL, a.ID), url.Values{"csrf": {csrf}, "note": {"Called Grace about the Home edition SECRET-A-NOTE"}})
+	if res.StatusCode != 303 || strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatalf("note: %d %s", res.StatusCode, res.Header.Get("Location"))
+	}
+	// Notes containing passwords are refused.
+	res, _ = owner.PostForm(fmt.Sprintf("%s/admin/customers/%d/notes", srv.URL, a.ID), url.Values{"csrf": {csrf}, "note": {"office login password: hunter2"}})
+	if !strings.Contains(res.Header.Get("Location"), "error=") {
+		t.Fatal("a note with a password must be refused")
+	}
+	// A's page shows the attention item and the note; B's page shows neither.
+	pageA, _ := owner.Get(fmt.Sprintf("%s/admin/customers/%d", srv.URL, a.ID))
+	bodyA, _ := io.ReadAll(pageA.Body)
+	if !strings.Contains(string(bodyA), "Windows Home") || !strings.Contains(string(bodyA), "SECRET-A-NOTE") || !strings.Contains(string(bodyA), "entered") {
+		t.Fatal("A's page missing onboarding attention item or note or source label")
+	}
+	pageB, _ := owner.Get(fmt.Sprintf("%s/admin/customers/%d", srv.URL, b.ID))
+	bodyB, _ := io.ReadAll(pageB.Body)
+	if strings.Contains(string(bodyB), "SECRET-A-NOTE") || strings.Contains(string(bodyB), "Home edition; advised") {
+		t.Fatal("tenant isolation broken: B's page shows A's note/readiness")
+	}
+	// Support view: viewer may read, may not write.
+	viewer := client(t)
+	vcsrf := login(t, viewer, srv.URL, "viewer@dishnet.test")
+	if res, _ := viewer.Get(fmt.Sprintf("%s/admin/customers/%d/support", srv.URL, a.ID)); res.StatusCode != 200 {
+		t.Fatalf("viewer support view: %d", res.StatusCode)
+	}
+	if res, _ := viewer.PostForm(fmt.Sprintf("%s/admin/customers/%d/notes", srv.URL, a.ID), url.Values{"csrf": {vcsrf}, "note": {"viewer note"}}); res.StatusCode != 403 {
+		t.Fatalf("viewer must not add notes: %d", res.StatusCode)
+	}
+	if res, _ := viewer.PostForm(fmt.Sprintf("%s/admin/customers/%d/onboarding", srv.URL, a.ID), url.Values{"csrf": {vcsrf}, "office_edition": {"pro"}, "readiness": {"ready"}}); res.StatusCode != 403 {
+		t.Fatalf("viewer must not edit onboarding: %d", res.StatusCode)
+	}
+	// Customers list shows progress and next action per customer.
+	list, _ := owner.Get(srv.URL + "/admin/customers")
+	bodyL, _ := io.ReadAll(list.Body)
+	if !strings.Contains(string(bodyL), "Next action") || !strings.Contains(string(bodyL), "Customer IT contact") {
+		t.Fatal("customer list lacks progress/next action")
 	}
 }

@@ -1,0 +1,46 @@
+{{template "header" .}}
+{{$c := .Customer}}
+<h1>Support view — {{$c.Name}}</h1>
+<p class="muted">Diagnosis for one customer only. <a href="/admin/customers/{{$c.ID}}">Customer page</a> · Plan: {{$c.Plan}}{{if not $c.SubscriptionExpiresAt.IsZero}} · ends {{date $c.SubscriptionExpiresAt}}{{end}}{{if .Expired}} · <span class="badge bad">expired</span>{{end}}{{if eq $c.Status "suspended"}} · <span class="badge bad">suspended</span>{{end}}</p>
+
+<div class="card">
+  <strong>Next action:</strong> {{.Progress.NextAction}} <span class="badge muted">{{.Progress.NextOwner}}</span>
+</div>
+
+<h2>Devices (observed)</h2>
+<div class="card">
+<table><tr><th>Name</th><th>Role</th><th>VPN address</th><th>Status</th><th>Last handshake</th><th>App last seen</th><th>Version</th><th>Endpoint</th></tr>
+{{range .Devices}}<tr>
+  <td>{{.Name}}</td><td>{{.Role}}</td><td class="mono">{{.VPNIP}}</td>
+  <td>{{if eq .Status "active"}}{{if online .LastHandshakeAt}}<span class="badge ok">online</span>{{else}}<span class="badge muted">offline</span>{{end}}{{else}}<span class="badge bad">revoked</span>{{end}}</td>
+  <td>{{ago .LastHandshakeAt}}</td><td>{{ago .LastSeenAt}}</td><td class="muted">{{.ClientVersion}}</td><td class="mono muted">{{.Endpoint}}</td>
+</tr>{{else}}<tr><td colspan="8" class="muted">No devices.</td></tr>{{end}}
+</table>
+</div>
+
+<h2>Common failures — what to check</h2>
+<div class="card">
+<table>
+<tr><th>Symptom reported</th><th>Check here</th><th>Likely cause / action</th></tr>
+<tr><td>Staff app stuck on "Connecting…"</td><td>Device row: handshake never / old</td><td>Staff laptop has no internet, or the device was revoked/expired. Confirm plan status above.</td></tr>
+<tr><td>Staff app says "Office computer not answering"</td><td>Gateway row: online?</td><td>Office PC off/asleep/offline, or "Allow Remote Desktop" never clicked there, or Windows Home (see onboarding). Ask the office to open the app and check it shows Connected.</td></tr>
+<tr><td>Remote Desktop opens, sign-in fails</td><td>— (not observable)</td><td>Wrong Windows user/password of the office PC, or account without a password. DishNet does not hold these; the customer's IT contact resets them.</td></tr>
+<tr><td>"Access revoked" / "trial ended"</td><td>Plan + device status above</td><td>Extend/mark paid on the customer page, or issue a new code if the device was revoked.</td></tr>
+<tr><td>Nothing works for anyone</td><td>Overview → failed provisioning jobs; <span class="mono">systemctl status dishnet-vpnd</span> on the hub</td><td>Hub-side problem. See docs/admin-support-runbook.md.</td></tr>
+</table>
+</div>
+
+<h2>Failed provisioning jobs for this customer</h2>
+<div class="card">
+<table><tr><th>#</th><th>When</th><th>Action</th><th>Error</th></tr>
+{{range .FailedJobs}}<tr><td>{{.ID}}</td><td>{{datetime .CreatedAt}}</td><td>{{.Action}}</td><td class="muted">{{.Error}}</td></tr>{{else}}<tr><td colspan="4" class="muted">None.</td></tr>{{end}}
+</table>
+</div>
+
+<h2>Support notes</h2>
+<div class="card">
+<table><tr><th>When</th><th>By</th><th>Note</th></tr>
+{{range .Notes}}<tr><td>{{datetime .CreatedAt}}</td><td>{{.Author}}</td><td>{{.Note}}</td></tr>{{else}}<tr><td colspan="3" class="muted">No notes yet.</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

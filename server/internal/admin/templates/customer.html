@@ -46,6 +46,52 @@
 </div>
 {{end}}
 
+<h2>Onboarding {{if eq .Progress.Done .Progress.Total}}<span class="badge ok">complete</span>{{else}}<span class="badge warn">{{.Progress.Done}} of {{.Progress.Total}}</span>{{end}}</h2>
+<div class="card">
+  <div style="margin-bottom:10px"><strong>Next action:</strong> {{.Progress.NextAction}} <span class="badge muted">owner: {{.Progress.NextOwner}}</span>
+    · <a href="{{$back}}/support">Support view</a> · <a href="{{.GuideURL}}" target="_blank">Customer manual</a> · <a href="{{.GuideURL}}.pdf" target="_blank">PDF</a></div>
+  <table>
+    <tr><th></th><th>Step</th><th>Detail</th><th>Source</th><th>Owner</th></tr>
+    {{range .Progress.Items}}<tr>
+      <td>{{if eq .Status "done"}}<span class="badge ok">✔</span>{{else if eq .Status "attention"}}<span class="badge bad">!</span>{{else}}<span class="badge muted">○</span>{{end}}</td>
+      <td>{{.Title}}</td><td class="muted">{{.Detail}}</td>
+      <td>{{if eq .Source "verified"}}<span class="badge ok" title="Observed by the system">verified</span>{{else}}<span class="badge muted" title="Entered by a person">entered</span>{{end}}</td>
+      <td class="muted">{{.Owner}}</td>
+    </tr>{{end}}
+  </table>
+  {{if .IsOperator}}
+  <form method="post" action="{{$back}}/onboarding" style="margin-top:14px">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <div class="grid">
+      <div><label>Office computer Windows edition (as told by the customer)</label>
+        <select name="office_edition"><option value="unknown" {{if eq .Onboarding.OfficeEdition "unknown"}}selected{{end}}>Not confirmed</option><option value="pro" {{if eq .Onboarding.OfficeEdition "pro"}}selected{{end}}>Windows 10/11 Pro</option><option value="server" {{if eq .Onboarding.OfficeEdition "server"}}selected{{end}}>Windows Server</option><option value="home" {{if eq .Onboarding.OfficeEdition "home"}}selected{{end}}>Windows Home (not supported)</option></select></div>
+      <div><label>Remote Desktop / Tally readiness (checked by support)</label>
+        <select name="readiness"><option value="not_checked" {{if eq .Onboarding.Readiness "not_checked"}}selected{{end}}>Not checked</option><option value="ready" {{if eq .Onboarding.Readiness "ready"}}selected{{end}}>Ready</option><option value="needs_attention" {{if eq .Onboarding.Readiness "needs_attention"}}selected{{end}}>Needs attention</option></select></div>
+      <div><label>Readiness note (no passwords)</label><input name="readiness_note" value="{{.Onboarding.ReadinessNote}}" maxlength="300"></div>
+      <div><label>Record milestones</label>
+        <label style="display:inline"><input type="checkbox" name="accepted" value="yes" {{if not .Onboarding.AcceptanceAt.IsZero}}checked disabled{{end}}> Acceptance test passed{{if not .Onboarding.AcceptanceAt.IsZero}} ({{date .Onboarding.AcceptanceAt}}){{end}}</label><br>
+        <label style="display:inline"><input type="checkbox" name="handover" value="yes" {{if not .Onboarding.HandoverAt.IsZero}}checked disabled{{end}}> Handover done{{if not .Onboarding.HandoverAt.IsZero}} ({{date .Onboarding.HandoverAt}}){{end}}</label></div>
+    </div>
+    <button class="small">Save onboarding</button>
+  </form>
+  {{end}}
+</div>
+
+<h2>Support notes</h2>
+<div class="card">
+  {{if .IsOperator}}
+  <form method="post" action="{{$back}}/notes" style="margin-bottom:10px">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label>Add a note (what was done / agreed — never passwords)</label>
+    <input name="note" maxlength="1000" required placeholder="e.g. Called Grace; office PC is Win 11 Pro; RDP test scheduled Friday 10:00">
+    <button class="small" style="margin-top:8px">Add note</button>
+  </form>
+  {{end}}
+  <table><tr><th>When</th><th>By</th><th>Note</th></tr>
+  {{range .Notes}}<tr><td>{{datetime .CreatedAt}}</td><td>{{.Author}}</td><td>{{.Note}}</td></tr>{{else}}<tr><td colspan="3" class="muted">No notes yet.</td></tr>{{end}}
+  </table>
+</div>
+
 <h2>Devices</h2>
 <div class="card">
 <table>

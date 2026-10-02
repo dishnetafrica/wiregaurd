@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/dishnetafrica/wiregaurd/server/internal/auth"
+	"github.com/dishnetafrica/wiregaurd/server/internal/onboarding"
 	"github.com/dishnetafrica/wiregaurd/server/internal/policy"
 	"github.com/dishnetafrica/wiregaurd/server/internal/provision"
 	"github.com/dishnetafrica/wiregaurd/server/internal/ratelimit"
@@ -111,6 +112,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/customers/{id}/update", h.gate(h.requireRole(store.AdminOperator, h.updateCustomer)))
 	mux.HandleFunc("POST /admin/customers/{id}/status", h.gate(h.requireRole(store.AdminOperator, h.customerStatus)))
 	mux.HandleFunc("POST /admin/customers/{id}/extend", h.gate(h.requireRole(store.AdminOperator, h.extendCustomer)))
+	mux.HandleFunc("POST /admin/customers/{id}/onboarding", h.gate(h.requireRole(store.AdminOperator, h.updateOnboarding)))
+	mux.HandleFunc("POST /admin/customers/{id}/notes", h.gate(h.requireRole(store.AdminOperator, h.addNote)))
+	mux.HandleFunc("GET /admin/customers/{id}/support", h.gate(h.requireRole(store.AdminViewer, h.supportView)))
 	mux.HandleFunc("POST /admin/customers/{id}/codes", h.gate(h.requireRole(store.AdminOperator, h.createCode)))
 	mux.HandleFunc("POST /admin/customers/{id}/policies", h.gate(h.requireRole(store.AdminOperator, h.createPolicy)))
 	mux.HandleFunc("POST /admin/codes/{id}/revoke", h.gate(h.requireRole(store.AdminOperator, h.revokeCode)))
@@ -354,8 +358,19 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) customers(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{"Templates": policy.Templates}
+	type row struct {
+		store.Customer
+		Done, Total int
+		Next, Owner string
+	}
 	_ = h.db.View(r.Context(), func(tx *store.Tx) error {
-		data["Customers"], _ = tx.ListCustomers()
+		customers, _ := tx.ListCustomers()
+		var rows []row
+		for _, c := range customers {
+			p := h.progress(tx, c)
+			rows = append(rows, row{Customer: c, Done: p.Done, Total: p.Total, Next: p.NextAction, Owner: p.NextOwner})
+		}
+		data["Customers"] = rows
 		return nil
 	})
 	h.render(w, r, "customers.html", data, http.StatusOK)
@@ -455,6 +470,10 @@ func (h *Handler) customer(w http.ResponseWriter, r *http.Request) {
 		data["Gateways"] = gateways
 		data["Expired"] = c.Expired(time.Now())
 		data["Capacity"] = capacityOf(c)
+		data["Progress"] = h.progress(tx, c)
+		data["Onboarding"], _ = tx.GetOnboarding(id)
+		data["Notes"], _ = tx.ListSupportNotes(id, 20)
+		data["GuideURL"] = h.publicURL + "/guide"
 		return nil
 	})
 	if err != nil {
@@ -697,6 +716,80 @@ func (h *Handler) rejectRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirectFlash(w, r, "/admin/requests", "Request rejected")
+}
+
+// progress derives the onboarding view for one customer; only that customer's rows are read.
+func (h *Handler) progress(tx *store.Tx, c store.Customer) onboarding.Progress {
+	devices, _ := tx.ListDevices(c.ID)
+	policies, _ := tx.ListPolicies(c.ID)
+	ob, _ := tx.GetOnboarding(c.ID)
+	var trial *store.TrialRequest
+	if tr, ok, _ := tx.TrialRequestForCustomer(c.ID); ok {
+		trial = &tr
+	}
+	return onboarding.Compute(onboarding.Input{Customer: c, Devices: devices, Policies: policies, Onboarding: ob, Trial: trial, Now: time.Now()})
+}
+
+func (h *Handler) updateOnboarding(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/admin/customers/%d", id)
+	err := h.svc.UpdateOnboarding(r.Context(), id, provision.OnboardingUpdate{
+		OfficeEdition: r.FormValue("office_edition"), Readiness: r.FormValue("readiness"), ReadinessNote: r.FormValue("readiness_note"),
+		MarkAccepted: r.FormValue("accepted") == "yes", MarkHandover: r.FormValue("handover") == "yes",
+	}, s.admin.Email)
+	if err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectFlash(w, r, back, "Onboarding updated")
+}
+
+func (h *Handler) addNote(w http.ResponseWriter, r *http.Request) {
+	s := sessionFrom(r)
+	id, _ := pathID(r)
+	back := fmt.Sprintf("/admin/customers/%d", id)
+	if err := h.svc.AddSupportNote(r.Context(), id, r.FormValue("note"), s.admin.Email); err != nil {
+		redirectErr(w, r, back, err)
+		return
+	}
+	redirectFlash(w, r, back, "Note added")
+}
+
+// supportView: everything support needs to diagnose one customer, nothing of any other.
+func (h *Handler) supportView(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	data := map[string]any{}
+	err = h.db.View(r.Context(), func(tx *store.Tx) error {
+		c, err := tx.GetCustomer(id)
+		if err != nil {
+			return err
+		}
+		devices, _ := tx.ListDevices(id)
+		jobs, _ := tx.ListJobs(300)
+		var failed []store.Job
+		for _, j := range jobs {
+			if j.CustomerID == id && j.State == store.JobFailed {
+				failed = append(failed, j)
+			}
+		}
+		data["Customer"] = c
+		data["Devices"] = devices
+		data["FailedJobs"] = failed
+		data["Progress"] = h.progress(tx, c)
+		data["Notes"], _ = tx.ListSupportNotes(id, 50)
+		data["Expired"] = c.Expired(time.Now())
+		return nil
+	})
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	h.render(w, r, "support.html", data, http.StatusOK)
 }
 
 func (h *Handler) jobs(w http.ResponseWriter, r *http.Request) {

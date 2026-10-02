@@ -247,3 +247,23 @@ type TrialRequest struct {
 	CreatedAt    time.Time
 	DecidedAt    time.Time
 }
+
+type Onboarding struct {
+	CustomerID    int64
+	OfficeEdition string // unknown | pro | server | home  (entered by admin/customer, not observed)
+	Readiness     string // not_checked | ready | needs_attention
+	ReadinessNote string
+	AcceptanceAt  time.Time
+	AcceptanceBy  string
+	HandoverAt    time.Time
+	HandoverBy    string
+	UpdatedAt     time.Time
+}
+
+type SupportNote struct {
+	ID         int64
+	CustomerID int64
+	Author     string
+	Note       string
+	CreatedAt  time.Time
+}

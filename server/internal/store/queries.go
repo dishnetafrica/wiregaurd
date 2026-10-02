@@ -769,3 +769,68 @@ func (t *Tx) DecideTrialRequest(id int64, status TrialStatus, customerID int64, 
 	}
 	return nil
 }
+
+// ---------- onboarding (admin-entered facts) ----------
+
+func (t *Tx) GetOnboarding(customerID int64) (Onboarding, error) {
+	var o Onboarding
+	var acc, hand sql.NullString
+	var updated string
+	err := t.tx.QueryRowContext(t.ctx, `SELECT customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, updated_at FROM customer_onboarding WHERE customer_id=?`, customerID).
+		Scan(&o.CustomerID, &o.OfficeEdition, &o.Readiness, &o.ReadinessNote, &acc, &o.AcceptanceBy, &hand, &o.HandoverBy, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Onboarding{CustomerID: customerID, OfficeEdition: "unknown", Readiness: "not_checked"}, nil
+	}
+	if err != nil {
+		return o, err
+	}
+	o.AcceptanceAt, o.HandoverAt = ParseTime(acc), ParseTime(hand)
+	o.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+	return o, nil
+}
+
+func (t *Tx) UpsertOnboarding(o Onboarding) error {
+	_, err := t.tx.ExecContext(t.ctx, `INSERT INTO customer_onboarding(customer_id, office_edition, readiness, readiness_note, acceptance_at, acceptance_by, handover_at, handover_by, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(customer_id) DO UPDATE SET office_edition=excluded.office_edition, readiness=excluded.readiness, readiness_note=excluded.readiness_note,
+		acceptance_at=excluded.acceptance_at, acceptance_by=excluded.acceptance_by, handover_at=excluded.handover_at, handover_by=excluded.handover_by, updated_at=excluded.updated_at`,
+		o.CustomerID, o.OfficeEdition, o.Readiness, o.ReadinessNote, nullTime(o.AcceptanceAt), o.AcceptanceBy, nullTime(o.HandoverAt), o.HandoverBy, Now())
+	return err
+}
+
+func (t *Tx) InsertSupportNote(n SupportNote) (SupportNote, error) {
+	res, err := t.tx.ExecContext(t.ctx, `INSERT INTO support_notes(customer_id, author, note, created_at) VALUES (?,?,?,?)`, n.CustomerID, n.Author, n.Note, Now())
+	if err != nil {
+		return n, err
+	}
+	n.ID, _ = res.LastInsertId()
+	return n, nil
+}
+
+func (t *Tx) ListSupportNotes(customerID int64, limit int) ([]SupportNote, error) {
+	rows, err := t.tx.QueryContext(t.ctx, `SELECT id, customer_id, author, note, created_at FROM support_notes WHERE customer_id=? ORDER BY id DESC LIMIT ?`, customerID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SupportNote
+	for rows.Next() {
+		var n SupportNote
+		var created string
+		if err := rows.Scan(&n.ID, &n.CustomerID, &n.Author, &n.Note, &created); err != nil {
+			return nil, err
+		}
+		n.CreatedAt, _ = time.Parse(time.RFC3339, created)
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// TrialRequestForCustomer returns the approved request that created the customer, if any.
+func (t *Tx) TrialRequestForCustomer(customerID int64) (TrialRequest, bool, error) {
+	r, err := scanTrial(t.tx.QueryRowContext(t.ctx, `SELECT `+trialCols+` FROM trial_requests WHERE customer_id=? ORDER BY id DESC LIMIT 1`, customerID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return r, false, nil
+	}
+	return r, err == nil, err
+}
