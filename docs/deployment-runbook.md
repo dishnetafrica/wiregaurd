@@ -115,8 +115,8 @@ Every release tag publishes a static Linux binary (built and tested by CI)
 at <https://github.com/dishnetafrica/wiregaurd/releases>. On the hub:
 
 ```bash
-curl -fL https://github.com/dishnetafrica/wiregaurd/releases/latest/download/dishnet-vpnd-linux-amd64 -o /root/dishnet-vpnd
-curl -fL https://github.com/dishnetafrica/wiregaurd/releases/latest/download/dishnet-vpnd-linux-amd64.sha256 | sed 's| .*| /root/dishnet-vpnd|' | sha256sum -c
+curl -fL https://github.com/dishnetafrica/wiregaurd/releases/download/<vX.Y.Z>/dishnet-vpnd-linux-amd64 -o /root/dishnet-vpnd
+curl -fL https://github.com/dishnetafrica/wiregaurd/releases/download/<vX.Y.Z>/dishnet-vpnd-linux-amd64.sha256 | sed 's| .*| /root/dishnet-vpnd|' | sha256sum -c
 chmod +x /root/dishnet-vpnd && /root/dishnet-vpnd version
 # expected: /root/dishnet-vpnd: OK
 #           dishnet-vpnd <7-char git sha>
@@ -372,3 +372,12 @@ interruption to existing tunnels).
 Not yet proven (needs the first live apply): the real netlink and `nft -f`
 code paths, Caddy certificate issuance. Step 5's validation commands cover
 exactly those.
+
+## 8. Routine updates (after the first deployment)
+
+```bash
+sudo bash /root/wiregaurd/deploy/update-server.sh           # newest server release (v*), verifies sha256, re-runs installer
+sudo bash /root/wiregaurd/deploy/fetch-installer.sh         # newest Windows client (client-v*) into the install-link / self-update cache
+```
+Do not use GitHub's `releases/latest/...` URL for the server binary: "latest"
+is simply the most recent release of either kind and may be a client build.

@@ -41,7 +41,7 @@ say "# DishNet hub install — $(hostname) — $STAMP — mode: $([[ $APPLY -eq 
 if [[ $APPLY -eq 1 && -z "$DOMAIN" ]]; then say "ERROR: DISHNET_DOMAIN is required for --apply (TLS)"; exit 1; fi
 if [[ -n "$BIN_SRC" && ! -x "$BIN_SRC" ]]; then
   say "ERROR: DISHNET_BIN=$BIN_SRC does not exist or is not executable. Download it first:"
-  say "  curl -fL https://github.com/dishnetafrica/wiregaurd/releases/latest/download/dishnet-vpnd-linux-amd64 -o $BIN_SRC && chmod +x $BIN_SRC"
+  say "  curl -fL https://github.com/dishnetafrica/wiregaurd/releases/download/<vX.Y.Z>/dishnet-vpnd-linux-amd64 -o $BIN_SRC && chmod +x $BIN_SRC"
   exit 1
 fi
 if [[ -z "$ADMIN_ALLOW" ]]; then
