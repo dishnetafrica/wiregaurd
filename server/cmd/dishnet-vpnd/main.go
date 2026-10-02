@@ -189,6 +189,7 @@ func serve(cfg Config, log *slog.Logger) error {
 	api.NewDownloads(svc, cfg.InstallerPath, log).Register(mux)
 	api.NewTrialPages(svc, cfg.SupportText).Register(mux)
 	api.NewUpdates(cfg.InstallerPath, cfg.PublicURL).Register(mux)
+	api.RegisterManual(mux)
 	if cfg.NotifyWebhook != "" {
 		svc.SetNotifier(&provision.WebhookNotifier{URL: cfg.NotifyWebhook})
 	}

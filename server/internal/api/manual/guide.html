@@ -1,0 +1,277 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DishNet Secure Connect — Customer Setup Guide</title>
+<style>
+:root{--red:#D7262D;--ink:#1f2328;--muted:#6b7280;--line:#e5e7eb}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color:var(--ink);margin:0;background:#fff;line-height:1.5}
+header{background:var(--red);color:#fff;padding:22px 32px}header .b{font-size:24px;font-weight:800}header .s{opacity:.9;font-size:14px}
+main{max-width:820px;margin:0 auto;padding:24px 32px 48px;font-size:15px}
+h1{font-size:26px;margin:.2em 0}h2{font-size:20px;margin-top:1.6em;border-bottom:2px solid var(--red);padding-bottom:4px}h3{font-size:16px;margin-top:1.3em}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:#f7f7f8}
+blockquote{border-left:4px solid var(--red);margin:12px 0;padding:6px 14px;background:#fff7f7;color:#4b5563}
+figure.diagram{margin:16px 0;border:1px solid var(--line);border-radius:8px;padding:12px}figcaption{font-size:12px;color:var(--muted);text-align:center}
+code{background:#f3f4f6;padding:1px 4px;border-radius:3px}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:16px}
+@media print{header{-webkit-print-color-adjust:exact;print-color-adjust:exact}h2{page-break-after:avoid}table,figure{page-break-inside:avoid}}
+</style></head><body>
+<header><div class="b">DishNet <span style="font-weight:400">Secure Connect</span></div><div class="s">Customer Setup Guide · version 1.0 · 2026-10-02</div></header>
+<main><h1>DishNet Secure Connect — Customer Setup Guide</h1>
+<p>Version 1.0 · 2026-10-02 · Support: WhatsApp 0705 993 348</p>
+<h2>1. What the service does — and does not do</h2>
+<p><strong>DishNet Secure Connect</strong> gives an authorised computer a private, encrypted
+connection to your office computer. You then use <strong>Windows Remote Desktop</strong> to
+see and control the office computer and run Tally there, just as if you were
+sitting at it.</p>
+<table>
+<thead>
+<tr>
+<th>It does</th>
+<th>It does not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connect your laptop to your office securely, from anywhere with internet</td>
+<td>Copy Tally or your company data to your laptop</td>
+</tr>
+<tr>
+<td>Let only computers authorised for <em>your</em> business use the connection</td>
+<td>Let other DishNet customers see your office</td>
+</tr>
+<tr>
+<td>Keep working across internet drops — it reconnects by itself</td>
+<td>Show Tally by itself — Remote Desktop does that</td>
+</tr>
+<tr>
+<td>Update itself when DishNet publishes a new version</td>
+<td>Replace Tally, change Tally, or need any Tally setting</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The one idea to remember:</strong> the connection links the computers; Remote
+Desktop shows the office screen; Tally runs on the office computer.</p>
+<h2>2. How it fits together</h2>
+<figure class="diagram" aria-label="Diagram: office computer with Tally, encrypted DishNet connection, remote laptop showing the office desktop">
+<svg viewBox="0 0 660 230" width="100%" role="img">
+  <rect x="40" y="40" width="160" height="110" rx="8" fill="#fff" stroke="#1f2328" stroke-width="2"/>
+  <rect x="100" y="152" width="40" height="14" fill="#1f2328"/><rect x="80" y="166" width="80" height="5" fill="#1f2328"/>
+  <rect x="58" y="56" width="124" height="78" rx="4" fill="#f7f7f8"/>
+  <text x="120" y="92" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2328">Tally</text>
+  <text x="120" y="112" text-anchor="middle" font-size="11" fill="#6b7280">company data</text>
+  <text x="120" y="196" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2328">Office computer</text>
+  <text x="120" y="212" text-anchor="middle" font-size="11" fill="#6b7280">stays on · data stays here</text>
+  <line x1="210" y1="95" x2="450" y2="95" stroke="#fde2e3" stroke-width="26" stroke-linecap="round"/>
+  <line x1="214" y1="95" x2="446" y2="95" stroke="#D7262D" stroke-width="4" stroke-dasharray="6 6" stroke-linecap="round"/>
+  <rect x="320" y="64" width="24" height="18" rx="3" fill="#D7262D"/><path d="M324,64 V60 A8,8 0 0 1 340,60 V64" stroke="#D7262D" stroke-width="3" fill="none"/>
+  <text x="330" y="128" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2328">Encrypted DishNet connection</text>
+  <text x="330" y="144" text-anchor="middle" font-size="11" fill="#6b7280">only your authorised devices · nothing is copied</text>
+  <rect x="470" y="48" width="160" height="100" rx="6" fill="#fff" stroke="#1f2328" stroke-width="2"/>
+  <rect x="455" y="150" width="190" height="10" rx="3" fill="#1f2328"/>
+  <rect x="482" y="60" width="136" height="76" rx="3" fill="#f7f7f8"/>
+  <text x="550" y="82" text-anchor="middle" font-size="10" fill="#6b7280">Office desktop</text>
+  <text x="550" y="104" text-anchor="middle" font-size="16" font-weight="700" fill="#1f2328">Tally</text>
+  <text x="550" y="120" text-anchor="middle" font-size="9" fill="#6b7280">via Remote Desktop</text>
+  <text x="550" y="196" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f2328">Your laptop, anywhere</text>
+  <text x="550" y="212" text-anchor="middle" font-size="11" fill="#6b7280">sees and controls the office screen</text>
+</svg>
+<figcaption>Diagram (not a screenshot): the connection links the computers; Remote Desktop shows the office screen; Tally runs on the office computer.</figcaption>
+</figure>
+<ol>
+<li><strong>Office computer</strong> — keeps Tally and the data. Must stay on and online.</li>
+<li><strong>DishNet</strong> — the encrypted connection between your devices and the office. Only your authorised computers can use it.</li>
+<li><strong>Your laptop</strong> — sees and controls the office screen through Remote Desktop. Nothing is stored on it.</li>
+</ol>
+<h2>3. Before you start — requirements</h2>
+<p><strong>Office computer (the one with Tally)</strong></p>
+<ul>
+<li>Windows 10 or 11 <strong>Pro</strong>, or Windows Server. <em>Windows Home cannot accept Remote Desktop connections.</em> The recommended fix is to upgrade that computer to Windows Pro (a licence upgrade, no reinstall); otherwise use another office computer that runs Pro. DishNet can advise.</li>
+<li>Switched on and connected to the internet whenever staff need remote access. Turn off sleep/hibernate in Windows power settings.</li>
+<li>A Windows user account with a password for each person who will sign in remotely (Remote Desktop refuses accounts with no password).</li>
+<li>Tally already installed and working on this computer.</li>
+</ul>
+<p><strong>Each remote computer (staff laptops)</strong></p>
+<ul>
+<li>Windows 10 or 11 (64-bit), any edition, with an administrator account to install the app once.</li>
+<li>Internet access (Starlink, mobile data, office Wi-Fi — any).</li>
+<li>The Windows user name and password of the office computer (kept by the staff member, never given to DishNet).</li>
+</ul>
+<p><strong>From DishNet</strong></p>
+<ul>
+<li>An install link (or activation code) for the office computer, and one for your staff computers.</li>
+<li>The number of computers you are allowed is agreed with DishNet; each needs its own activation.</li>
+</ul>
+<h2>4. Setting up the office computer</h2>
+<ol>
+<li>On the office computer, open the <strong>office install link</strong> DishNet sent you. The file <code>DishNetSecureConnect-Setup-DN-….exe</code> downloads.</li>
+<li>Run it. Windows shows <em>"Windows protected your PC"</em> — click <strong>More info → Run anyway</strong> (the pilot build is not yet code-signed). Click <strong>Yes</strong> when Windows asks for administrator permission; it is needed once to install the secure connection.</li>
+<li>The app opens, activates by itself, and shows <strong>Connected</strong>.</li>
+<li>The app then asks: <strong>"Allow Remote Desktop for DishNet users?"</strong> It explains exactly what it will change: switch on Windows Remote Desktop, and allow connections <em>only from DishNet-authorised devices</em> on the Remote Desktop port. Nothing is opened to the internet. Click <strong>Allow</strong> (the owner of the computer, or DishNet support with the owner present, makes this choice).</li>
+<li>Leave the app running. It starts with Windows and reconnects by itself. The office computer is now reachable by your staff.</li>
+</ol>
+<blockquote>
+<p>If you prefer to set Remote Desktop yourself instead of clicking Allow, use Windows Settings → System → Remote Desktop, and allow the DishNet connection range in Windows Firewall. DishNet support can walk you through it.</p>
+</blockquote>
+<h2>5. Installing and activating a staff computer</h2>
+<ol>
+<li>On the staff laptop, open the <strong>staff install link</strong>. Run the downloaded file (<em>More info → Run anyway</em>, then <strong>Yes</strong>).</li>
+<li>The app opens with a short <strong>2-minute tour</strong> explaining the three steps. Watch it or choose <em>Watch later</em>; you can replay it any time with <strong>How does this work?</strong></li>
+<li>The app activates by itself (if you were given a code instead, type it and click <strong>Activate</strong>). Each code works once and registers only that computer.</li>
+<li>The main screen shows your business name, this device, and <strong>Your setup checklist</strong>.</li>
+</ol>
+<h2>6. Connecting</h2>
+<ol>
+<li>Click <strong>Connect to Office</strong>. Within a few seconds the status reads <strong>Connected</strong>.</li>
+<li>The checklist updates by itself:
+   - ✔ Activation code accepted
+   - ✔ Device registered
+   - ✔ Secure connection to DishNet
+   - <strong>Office computer reachable</strong> — the app tests whether the office computer answers. If it says <em>not answering</em>, the office computer is off, asleep, offline, or Remote Desktop was not allowed there yet.</li>
+<li><strong>Next:</strong> the line under the checklist always tells you what to do next.</li>
+</ol>
+<h2>7. Opening Remote Desktop and using Tally</h2>
+<ol>
+<li>Click <strong>Open Remote Desktop</strong>. Windows Remote Desktop opens with the office computer's address already filled in.</li>
+<li>Click <strong>Connect</strong>, then sign in with the <strong>Windows user name and password of the office computer</strong>. If Windows warns that the computer's identity cannot be verified, choose <em>Yes</em> — you are connecting through DishNet's private connection, not the public internet.</li>
+<li>The office desktop appears in a window (use the full-screen button at the top if it is small). Open Tally there exactly as you do at the office.</li>
+<li>Back in the DishNet app, tick <strong>✔ Remote Desktop worked</strong> and <strong>✔ Tally opened</strong> so DishNet knows your setup is complete.</li>
+</ol>
+<p>Only one person at a time can control a normal Windows PC through Remote Desktop. If a colleague is working on it, you will be asked whether to disconnect them — agree with them first.</p>
+<h2>8. Disconnecting</h2>
+<ol>
+<li>In Tally, save and close the company as usual.</li>
+<li>Close the Remote Desktop window (or sign out inside it).</li>
+<li>Click <strong>Disconnect</strong> in the DishNet app.</li>
+</ol>
+<p>The office computer keeps running for others. You can leave the DishNet app open; it uses no data when idle.</p>
+<h2>9. When something does not work</h2>
+<p>Start at the top and stop at the first line that matches what you see.</p>
+<table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>What it usually means</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>"Connecting…" for more than a minute</strong></td>
+<td>Your laptop has no internet</td>
+<td>Open any website. Fix your internet first; the app connects by itself afterwards.</td>
+</tr>
+<tr>
+<td><strong>"Reconnecting…"</strong></td>
+<td>Your internet dropped</td>
+<td>Wait. The app reconnects by itself when the internet is back.</td>
+</tr>
+<tr>
+<td><strong>"Office computer not answering"</strong></td>
+<td>Office PC off, asleep, offline, or Remote Desktop not allowed there</td>
+<td>Ask someone at the office to switch it on and check the DishNet app there shows Connected and Remote Desktop was allowed.</td>
+</tr>
+<tr>
+<td><strong>Remote Desktop opens, sign-in fails</strong></td>
+<td>Wrong Windows user name/password of the office computer, or the account has no password</td>
+<td>Use the office computer's own login. Set a password on that Windows account if it has none.</td>
+</tr>
+<tr>
+<td><strong>"Access revoked"</strong></td>
+<td>DishNet removed this device</td>
+<td>Contact DishNet. A new install link/code is needed.</td>
+</tr>
+<tr>
+<td><strong>"Free trial has ended"</strong></td>
+<td>Your trial finished</td>
+<td>Contact DishNet to continue; access returns within a minute of renewal.</td>
+</tr>
+<tr>
+<td><strong>"Problem" with a message</strong></td>
+<td>A local issue (permissions, tunnel component)</td>
+<td>Close the app, right-click → Run as administrator. If it persists, click <strong>Save diagnostics…</strong> and send the file to DishNet.</td>
+</tr>
+<tr>
+<td><strong>Yellow bar "Version X is available"</strong></td>
+<td>An update is ready</td>
+<td>Click <strong>Update now</strong>. No uninstall needed; activation stays.</td>
+</tr>
+</tbody>
+</table>
+<p>Tally itself behaves exactly as it does at the office. Tally questions (licences, company files, errors inside Tally) are for your Tally provider; DishNet supports the connection and Remote Desktop.</p>
+<h2>10. Security tips and support</h2>
+<ul>
+<li>Never share your activation code or install link; each works once per computer.</li>
+<li>Never give your Windows or Tally password to anyone — DishNet will never ask for it.</li>
+<li>Lock your laptop when you step away; anyone using it could reach the office through the connection.</li>
+<li>Disconnect when you finish for the day.</li>
+<li>When a staff member leaves, tell DishNet; their device is removed within a minute.</li>
+<li>Keep the office computer updated and protected with antivirus, as for any business computer.</li>
+<li>Your data stays on your office computer. DishNet does not store, read or copy it; the connection is encrypted end to end (WireGuard®). Diagnostics files you send contain technical status only — secrets are removed automatically.</li>
+</ul>
+<p><strong>Contact DishNet support:</strong> WhatsApp 0705 993 348
+Tell us your business name and what the app shows. Use <strong>Save diagnostics…</strong> in the app if we ask for the file.</p>
+<hr />
+<h2>Appendix — Help topics (as shown in the app)</h2>
+<h3>What is DishNet Secure Connect?</h3>
+<p>DishNet Secure Connect is a small program that gives your computer a private, encrypted road to your office computer. It is not Tally and it does not show Tally by itself. Tally and your company data stay on the office computer, exactly as today.</p>
+<p>Think of it in two parts: the <strong>connection</strong> (DishNet makes the private road) and <strong>Remote Desktop</strong> (the Windows tool that shows you the office screen so you can work on that computer from where you are).</p>
+<h3>How does it work?</h3>
+<ol>
+<li><strong>Your office computer</strong> keeps Tally and the company data. It must stay switched on and connected to the internet, and DishNet must be set up on it as the "office computer".</li>
+<li><strong>DishNet</strong> connects your laptop to the office through an encrypted tunnel. Only devices that DishNet has authorised for your business can use it. Nobody else — not even other DishNet customers — can reach your office computer.</li>
+<li><strong>Remote Desktop</strong> shows you the office computer's screen. You sign in with your Windows user name and password for that computer, open Tally there, and work as if you were sitting in the office. Nothing is copied to your laptop.</li>
+</ol>
+<p>Click <strong>How does this work?</strong> in the app any time to watch the short tour again.</p>
+<h3>How to connect for the first time</h3>
+<ol>
+<li>Install DishNet Secure Connect from the link DishNet sent you (Windows will ask for administrator permission once — this is needed to set up the secure connection).</li>
+<li>If the app asks for an activation code, type the code DishNet gave you. Codes work once and only on this computer. If you used an install link, this happens by itself.</li>
+<li>Click <strong>Connect to Office</strong>. Within a few seconds the status shows <strong>Connected</strong>.</li>
+<li>Follow the checklist on the main screen: it tells you the next step and confirms when your office computer answers.</li>
+</ol>
+<h3>How to access Tally remotely</h3>
+<ol>
+<li>Make sure the app shows <strong>Connected</strong> and the checklist says the office computer is reachable.</li>
+<li>Click <strong>Open Remote Desktop</strong>. Windows Remote Desktop opens with the office computer's address filled in.</li>
+<li>Sign in with the <strong>Windows user name and password of the office computer</strong> (the same ones used at the office). DishNet never asks for, stores or sees this password.</li>
+<li>The office desktop appears in a window. Open Tally there as you normally do. Tally runs on the office computer; you are seeing and controlling it.</li>
+<li>Tick the checklist steps once Remote Desktop and Tally work, so DishNet knows your setup is complete.</li>
+</ol>
+<p>Tip: if the Remote Desktop window is small, use the full-screen button at the top of that window.</p>
+<h3>How to disconnect safely</h3>
+<ol>
+<li>In Tally, save your work and close the company as you would at the office.</li>
+<li>Close the Remote Desktop window (or sign out of Windows inside it).</li>
+<li>Click <strong>Disconnect</strong> in DishNet Secure Connect.</li>
+</ol>
+<p>Disconnecting only closes your private road. The office computer stays on and keeps running for your colleagues.</p>
+<h3>What to do when the connection fails</h3>
+<ul>
+<li><strong>"Connecting…" never becomes "Connected":</strong> check that your laptop has internet (open any website). The office connection needs the internet on both sides.</li>
+<li><strong>"Reconnecting…":</strong> your internet dropped. The app reconnects by itself when the internet is back; you do not need to click anything.</li>
+<li><strong>"Office computer not answering":</strong> the office computer is probably switched off, asleep, or lost its internet. Ask someone at the office to switch it on and check that DishNet shows "Connected" there. Remote Desktop must be allowed on it (the office app asks for this once).</li>
+<li><strong>Remote Desktop opens but sign-in fails:</strong> the user name or password of the office computer is wrong. Use the same ones that work at the office. DishNet cannot reset Windows passwords.</li>
+<li><strong>"Access revoked" or "trial has ended":</strong> DishNet has stopped this device or your trial finished. Contact DishNet.</li>
+<li><strong>"Problem" with a message:</strong> read the message; most are solved by closing and reopening the app as administrator. If it keeps happening, click <strong>Save diagnostics…</strong> and send the file to DishNet support. The file contains no passwords or keys.</li>
+</ul>
+<h3>How to add another authorised computer</h3>
+<p>Each computer needs its own activation. Ask DishNet for a new install link or code for the extra computer. Your business has a limit on the number of computers; DishNet can raise it. Never share one code between two computers — a code works once.</p>
+<h3>How updates work</h3>
+<p>DishNet Secure Connect checks for updates once a day. When a new version is available, a yellow bar appears with <strong>Update now</strong>. Click it: the update downloads from DishNet, installs in about a minute, and the app reopens. You do not need to uninstall anything, and your activation stays.</p>
+<h3>Security, privacy and data location</h3>
+<ul>
+<li>Your Tally data stays on your office computer. DishNet does not store, read or copy it.</li>
+<li>The connection is encrypted end to end using WireGuard®, a modern, widely audited protocol.</li>
+<li>Each computer has its own key, created on that computer. The private key never leaves it, not even to DishNet.</li>
+<li>Only computers authorised for <strong>your</strong> business can reach your office computer. Other DishNet customers are completely separate.</li>
+<li>DishNet never asks for your Windows password or Tally password, and the app never records them.</li>
+<li>Diagnostics files you send to support contain technical status only; secrets are removed automatically.</li>
+</ul>
+<h3>Frequently asked questions</h3>
+<p><strong>Does the office computer have to be on all the time?</strong> Yes, whenever someone needs to work remotely. If it is off or asleep, nobody can connect.</p>
+<p><strong>Can two people use Tally remotely at the same time?</strong> Remote Desktop on a normal Windows PC allows one person at a time to control the screen. For several people at once you need Windows Server with the right licences — ask DishNet.</p>
+<p><strong>Does this work with my version of Tally?</strong> DishNet Secure Connect does not change Tally; it shows you the office screen. Whatever works on the office computer works remotely. DishNet confirms this with you during the first test.</p>
+<p><strong>My office computer runs Windows Home. Will it work?</strong> Windows Home cannot accept Remote Desktop connections. The recommended fix is to upgrade that computer to Windows Pro (a licence upgrade, no reinstall); otherwise use another office computer that runs Pro. DishNet can advise.</p>
+<p><strong>Is my internet fast enough?</strong> Remote Desktop works well even on modest connections, including Starlink. Large files are not transferred — only the screen.</p>
+<p><strong>What does it cost after the trial?</strong> Contact DishNet; the app shows how many trial days remain.</p>
+<p><strong>How do I get help?</strong> Use <strong>Contact DishNet support</strong> in the app.</p></main>
+<footer>Encrypted connection · Authorised devices only · Powered by WireGuard® (a registered trademark of Jason A. Donenfeld) · © DishNet Africa</footer>
+</body></html>
