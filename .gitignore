@@ -1,0 +1,8 @@
+# build outputs
+server/dishnet-vpnd
+*.db
+*.db-wal
+*.db-shm
+# local secrets
+*.env
+!deploy/**/*.example

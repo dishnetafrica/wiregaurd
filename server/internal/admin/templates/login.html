@@ -1,0 +1,13 @@
+{{template "header" .}}
+<div class="login card">
+  <div class="logo">DishNet Secure Connect</div>
+  <div class="muted" style="margin-bottom:18px">Administrator sign-in</div>
+  <form method="post" action="/admin/login">
+    <label>Email</label>
+    <input name="email" type="email" autocomplete="username" required autofocus>
+    <label style="margin-top:10px">Password</label>
+    <input name="password" type="password" autocomplete="current-password" required>
+    <div style="margin-top:16px"><button>Sign in</button></div>
+  </form>
+</div>
+{{template "footer" .}}

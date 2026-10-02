@@ -1,0 +1,32 @@
+{{template "header" .}}
+<h1>Customers</h1>
+{{if .IsOperator}}
+<div class="card">
+  <h2 style="margin-top:0">New customer</h2>
+  <form method="post" action="/admin/customers">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="grid">
+      <div><label>Business name</label><input name="name" required maxlength="80"></div>
+      <div><label>Contact (phone / email)</label><input name="contact" maxlength="120"></div>
+      <div><label>Device limit</label><input name="device_limit" type="number" min="1" max="14" value="5"></div>
+      <div><label>Subscription expires (YYYY-MM-DD, blank = never)</label><input name="expires_at" placeholder="2027-01-31"></div>
+      <div><label>Default ports clients may reach on the office server</label><input name="default_ports" value="3389" placeholder="3389, 9000"></div>
+    </div>
+    <p class="muted" style="font-size:13px">3389 = Remote Desktop (recommended for Tally/ERP). 9000 = Tally client/server. SMB file shares (445) are refused.</p>
+    <button>Create customer</button>
+  </form>
+</div>
+{{end}}
+<div class="card">
+<table><tr><th>Name</th><th>Contact</th><th>Status</th><th>Expires</th><th>Limit</th><th>Block</th></tr>
+{{range .Customers}}<tr>
+  <td><a href="/admin/customers/{{.ID}}">{{.Name}}</a></td>
+  <td>{{.Contact}}</td>
+  <td>{{if eq .Status "active"}}<span class="badge ok">active</span>{{else}}<span class="badge bad">suspended</span>{{end}}</td>
+  <td>{{date .SubscriptionExpiresAt}}</td>
+  <td>{{.DeviceLimit}}</td>
+  <td class="mono">{{.VPNBlock}}</td>
+</tr>{{else}}<tr><td colspan="6" class="muted">No customers yet.</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

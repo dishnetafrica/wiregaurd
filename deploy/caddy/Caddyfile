@@ -1,0 +1,29 @@
+# DishNet Secure Connect — TLS termination for the API and admin dashboard.
+# __DOMAIN__ is replaced by deploy/install.sh with $DISHNET_DOMAIN.
+# Caddy obtains and renews the Let's Encrypt certificate automatically;
+# port 80 must be reachable for the HTTP-01 challenge (or use DNS-01).
+
+__DOMAIN__ {
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# Device API and dashboard are the same Go process on loopback.
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	log {
+		output file /var/log/caddy/dishnet-access.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+		format json
+	}
+}

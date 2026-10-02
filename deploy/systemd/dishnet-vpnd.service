@@ -1,0 +1,39 @@
+[Unit]
+Description=DishNet Secure Connect management service (device API, admin dashboard, WireGuard/nftables provisioner)
+Documentation=https://github.com/dishnetafrica/wiregaurd
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+# Keep running even if wg0 is briefly down; the reconciler retries every minute.
+
+[Service]
+Type=simple
+User=dishnet
+Group=dishnet
+EnvironmentFile=/etc/dishnet/dishnet-vpnd.env
+ExecStart=/usr/local/bin/dishnet-vpnd serve
+Restart=always
+RestartSec=3
+
+# Least privilege: the only capability needed is CAP_NET_ADMIN, for the
+# WireGuard netlink socket, `nft -f` and `ip route`. The service cannot read
+# /etc/wireguard (root:root 0700) and therefore never sees the hub private key.
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dishnet /etc/nftables.d
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

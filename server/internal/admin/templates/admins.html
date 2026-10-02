@@ -1,0 +1,20 @@
+{{template "header" .}}
+<h1>Administrators</h1>
+<div class="card">
+  <h2 style="margin-top:0">Add administrator</h2>
+  <form method="post" action="/admin/admins">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="grid">
+      <div><label>Email</label><input name="email" type="email" required></div>
+      <div><label>Password (min 12 characters)</label><input name="password" type="password" minlength="12" required autocomplete="new-password"></div>
+      <div><label>Role</label><select name="role"><option value="viewer">Viewer — read only</option><option value="operator">Operator — manage customers and devices</option><option value="owner">Owner — everything, incl. administrators</option></select></div>
+    </div>
+    <button>Create</button>
+  </form>
+</div>
+<div class="card">
+<table><tr><th>Email</th><th>Role</th><th>Created</th><th>Status</th></tr>
+{{range .Admins}}<tr><td>{{.Email}}</td><td>{{.Role}}</td><td>{{date .CreatedAt}}</td><td>{{if .Disabled}}<span class="badge bad">disabled</span>{{else}}<span class="badge ok">active</span>{{end}}</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

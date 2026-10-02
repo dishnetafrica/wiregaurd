@@ -1,0 +1,127 @@
+{{template "header" .}}
+{{$c := .Customer}}{{$csrf := .CSRF}}{{$back := printf "/admin/customers/%d" $c.ID}}
+<h1>{{$c.Name}}
+  {{if eq $c.Status "active"}}<span class="badge ok">active</span>{{else}}<span class="badge bad">suspended</span>{{end}}
+  {{if .Expired}}<span class="badge warn">subscription expired</span>{{end}}
+</h1>
+<p class="muted">Block <span class="mono">{{$c.VPNBlock}}</span> · up to {{.Capacity}} addresses · contact: {{$c.Contact}}</p>
+
+{{if .NewCode}}
+<div class="code-reveal">
+  <div class="muted">New activation code — shown once. Give it to the customer now; it is not stored in clear text.</div>
+  <div class="code">{{.NewCode}}</div>
+</div>
+{{end}}
+
+{{if .IsOperator}}
+<div class="card">
+  <form method="post" action="{{$back}}/status" class="inline">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    {{if eq $c.Status "active"}}
+      <input type="hidden" name="status" value="suspended"><button class="secondary" onclick="return confirm('Suspend {{$c.Name}}? All of their devices will be disconnected immediately.')">Suspend customer</button>
+    {{else}}
+      <input type="hidden" name="status" value="active"><button>Reactivate customer</button>
+    {{end}}
+  </form>
+</div>
+{{end}}
+
+<h2>Devices</h2>
+<div class="card">
+<table>
+<tr><th>Name</th><th>Role</th><th>VPN address</th><th>Status</th><th>Last handshake</th><th>Last seen (app)</th><th>Traffic</th><th>Version</th><th></th></tr>
+{{range .Devices}}<tr>
+  <td>{{.Name}}{{if .LANSubnets}}<div class="muted mono">LAN {{range .LANSubnets}}{{.}} {{end}}</div>{{end}}</td>
+  <td>{{if eq .Role "gateway"}}<span class="badge warn">office gateway</span>{{else}}<span class="badge muted">client</span>{{end}}</td>
+  <td class="mono">{{.VPNIP}}</td>
+  <td>{{if eq .Status "active"}}{{if online .LastHandshakeAt}}<span class="badge ok">online</span>{{else}}<span class="badge muted">offline</span>{{end}}{{else}}<span class="badge bad">revoked</span>{{end}}</td>
+  <td>{{ago .LastHandshakeAt}}</td>
+  <td>{{ago .LastSeenAt}}</td>
+  <td class="muted">↓{{mb .RxBytes}} ↑{{mb .TxBytes}}</td>
+  <td class="muted">{{.ClientVersion}}</td>
+  <td class="right">{{if and $.IsOperator (eq .Status "active")}}
+    <form method="post" action="/admin/devices/{{.ID}}/revoke" class="inline" onsubmit="return confirm('Revoke {{.Name}}? It will be disconnected and must be re-activated with a new code.')">
+      <input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="back" value="{{$back}}">
+      <button class="small secondary">Revoke</button></form>{{end}}</td>
+</tr>{{else}}<tr><td colspan="9" class="muted">No devices registered. Generate an activation code below.</td></tr>{{end}}
+</table>
+</div>
+
+<h2>Activation codes</h2>
+{{if .IsOperator}}
+<div class="card">
+  <form method="post" action="{{$back}}/codes">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <div class="grid">
+      <div><label>Role</label><select name="role"><option value="client">Client (staff laptop)</option><option value="gateway">Office gateway / server</option></select></div>
+      <div><label>Label</label><input name="label" placeholder="e.g. Accounts laptop" maxlength="60"></div>
+      <div><label>Max uses</label><input name="max_uses" type="number" min="1" max="50" value="1"></div>
+      <div><label>Code expires (YYYY-MM-DD, default 14 days)</label><input name="expires_at"></div>
+    </div>
+    <button>Generate code</button>
+    <span class="muted" style="font-size:13px;margin-left:10px">Register the office gateway first; clients get access to it automatically on ports {{ports $c.DefaultPorts}}.</span>
+  </form>
+</div>
+{{end}}
+<div class="card">
+<table><tr><th>Hint</th><th>Role</th><th>Label</th><th>Uses</th><th>Expires</th><th>Status</th><th></th></tr>
+{{range .Codes}}<tr>
+  <td class="mono">DN-{{.CodeHint}}-····</td><td>{{.Role}}</td><td>{{.Label}}</td><td>{{.Uses}} / {{.MaxUses}}</td><td>{{date .ExpiresAt}}</td>
+  <td>{{if not .RevokedAt.IsZero}}<span class="badge bad">revoked</span>{{else if ge .Uses .MaxUses}}<span class="badge muted">used</span>{{else}}<span class="badge ok">unused</span>{{end}}</td>
+  <td class="right">{{if and $.IsOperator .RevokedAt.IsZero (lt .Uses .MaxUses)}}
+    <form method="post" action="/admin/codes/{{.ID}}/revoke" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="back" value="{{$back}}"><button class="small secondary">Revoke</button></form>{{end}}</td>
+</tr>{{else}}<tr><td colspan="7" class="muted">No codes yet.</td></tr>{{end}}
+</table>
+</div>
+
+<h2>Access policies</h2>
+<p class="muted" style="font-size:13px">Default deny. Each row allows the named client(s) to reach the named gateway on the listed ports. Nothing else is forwarded.</p>
+<div class="card">
+<table><tr><th>From</th><th>To</th><th>Proto</th><th>Ports</th><th>Label</th><th>Enabled</th><th></th></tr>
+{{range .Policies}}<tr>
+  <td>{{.From}}</td><td>{{.To}}</td><td>{{.Proto}}</td><td class="mono">{{ports .Ports}}</td><td>{{.Label}}</td>
+  <td>{{if .Enabled}}<span class="badge ok">yes</span>{{else}}<span class="badge muted">no</span>{{end}}</td>
+  <td class="right">{{if $.IsOperator}}
+    <form method="post" action="/admin/policies/{{.ID}}/toggle" class="inline"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="back" value="{{$back}}">
+      <input type="hidden" name="enabled" value="{{if .Enabled}}no{{else}}yes{{end}}"><button class="small secondary">{{if .Enabled}}Disable{{else}}Enable{{end}}</button></form>
+    <form method="post" action="/admin/policies/{{.ID}}/delete" class="inline" onsubmit="return confirm('Delete this policy?')"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="back" value="{{$back}}"><button class="small secondary">Delete</button></form>{{end}}</td>
+</tr>{{else}}<tr><td colspan="7" class="muted">No policies. Register a gateway device to create the default policy, or add one below.</td></tr>{{end}}
+</table>
+</div>
+{{if and .IsOperator .Gateways}}
+<div class="card">
+  <h2 style="margin-top:0">Add policy</h2>
+  <form method="post" action="{{$back}}/policies">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <div class="grid">
+      <div><label>From</label><select name="from_device_id"><option value="0">Any client of this customer</option>{{range .Devices}}{{if and (eq .Role "client") (eq .Status "active")}}<option value="{{.ID}}">{{.Name}} ({{.VPNIP}})</option>{{end}}{{end}}</select></div>
+      <div><label>To gateway</label><select name="to_device_id">{{range .Gateways}}<option value="{{.ID}}">{{.Name}} ({{.VPNIP}})</option>{{end}}</select></div>
+      <div><label>Office LAN behind gateway (Mode B only, must be declared by the gateway)</label><input name="to_cidr" placeholder="leave blank for the gateway itself"></div>
+      <div><label>Template</label><select name="template"><option value="rdp">Remote Desktop (3389)</option><option value="tally">Tally (9000)</option><option value="rdp_tally">RDP + Tally</option><option value="https">HTTPS (443)</option><option value="sql">SQL Server (1433)</option><option value="custom">Custom ports…</option></select></div>
+      <div><label>Custom ports</label><input name="ports" placeholder="e.g. 8080, 5432"></div>
+      <div><label>Protocol</label><select name="proto"><option>tcp</option><option>udp</option><option>icmp</option></select></div>
+      <div><label>Label</label><input name="label" maxlength="60"></div>
+      <div><label>Allow SMB/NetBIOS (not recommended)</label><select name="allow_smb"><option value="no">No</option><option value="yes">Yes — I understand the risk</option></select></div>
+    </div>
+    <button>Add policy</button>
+  </form>
+</div>
+{{end}}
+
+{{if .IsOperator}}
+<h2>Settings</h2>
+<div class="card">
+  <form method="post" action="{{$back}}/update">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <div class="grid">
+      <div><label>Business name</label><input name="name" value="{{$c.Name}}" required></div>
+      <div><label>Contact</label><input name="contact" value="{{$c.Contact}}"></div>
+      <div><label>Device limit (max {{.Capacity}})</label><input name="device_limit" type="number" min="1" max="{{.Capacity}}" value="{{$c.DeviceLimit}}"></div>
+      <div><label>Subscription expires (YYYY-MM-DD, blank = never)</label><input name="expires_at" value="{{date $c.SubscriptionExpiresAt | printf "%s" }}" placeholder="never"></div>
+      <div><label>Default ports for new gateways</label><input name="default_ports" value="{{ports $c.DefaultPorts}}"></div>
+    </div>
+    <button>Save</button>
+  </form>
+</div>
+{{end}}
+{{template "footer" .}}

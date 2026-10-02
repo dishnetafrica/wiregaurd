@@ -1,0 +1,26 @@
+{{template "header" .}}
+<h1>Overview</h1>
+<div class="tiles">
+  <div class="tile"><div class="n">{{len .Customers}}</div><div class="l">Customers</div></div>
+  <div class="tile"><div class="n">{{.DeviceCount}}</div><div class="l">Active devices</div></div>
+  <div class="tile"><div class="n">{{.Online}}</div><div class="l">Online (handshake &lt; 3 min)</div></div>
+  <div class="tile"><div class="n">{{.FailedJobs}}</div><div class="l">Failed provisioning jobs{{if .FailedJobs}} — <a href="/admin/jobs">review</a>{{end}}</div></div>
+</div>
+<h2>Address pools</h2>
+<div class="card">
+<table><tr><th>Name</th><th>Range</th><th>Block size</th></tr>
+{{range .Pools}}<tr><td>{{.Name}}</td><td class="mono">{{.CIDR}}</td><td>/{{.BlockLen}} per customer</td></tr>{{end}}
+</table>
+</div>
+<h2>Customers</h2>
+<div class="card">
+<table><tr><th>Name</th><th>Status</th><th>Expires</th><th>Block</th></tr>
+{{range .Customers}}<tr>
+  <td><a href="/admin/customers/{{.ID}}">{{.Name}}</a></td>
+  <td>{{if eq .Status "active"}}<span class="badge ok">active</span>{{else}}<span class="badge bad">suspended</span>{{end}}</td>
+  <td>{{date .SubscriptionExpiresAt}}</td>
+  <td class="mono">{{.VPNBlock}}</td>
+</tr>{{else}}<tr><td colspan="4" class="muted">No customers yet. <a href="/admin/customers">Create one.</a></td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

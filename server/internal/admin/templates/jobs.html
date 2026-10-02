@@ -1,0 +1,20 @@
+{{template "header" .}}
+<h1>Provisioning</h1>
+{{if .IsOperator}}
+<div class="card">
+  <form method="post" action="/admin/jobs/reconcile" class="inline"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="secondary">Reconcile hub now</button></form>
+  <span class="muted" style="font-size:13px;margin-left:10px">Re-applies peers, firewall rules and routes from the database. Runs automatically every minute and at start-up.</span>
+</div>
+{{end}}
+<div class="card">
+<table><tr><th>#</th><th>When</th><th>Action</th><th>Customer</th><th>Device</th><th>Key</th><th>State</th><th>Error</th></tr>
+{{range .Jobs}}<tr>
+  <td>{{.ID}}</td><td>{{datetime .CreatedAt}}</td><td>{{.Action}}</td>
+  <td><a href="/admin/customers/{{.CustomerID}}">{{.CustomerID}}</a></td><td>{{.DeviceID}}</td>
+  <td class="mono">{{printf "%.10s…" .PublicKey}}</td>
+  <td>{{if eq .State "applied"}}<span class="badge ok">applied</span>{{else if eq .State "failed"}}<span class="badge bad">failed</span>{{else}}<span class="badge warn">pending</span>{{end}}</td>
+  <td class="muted">{{.Error}}</td>
+</tr>{{else}}<tr><td colspan="8" class="muted">No provisioning jobs yet.</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

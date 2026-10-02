@@ -1,0 +1,10 @@
+{{template "header" .}}
+<h1>Audit log</h1>
+<div class="card">
+<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr>
+{{range .Entries}}<tr>
+  <td>{{datetime .At}}</td><td>{{.ActorType}}:{{.ActorID}}</td><td class="mono">{{.Action}}</td><td class="mono">{{.Target}}</td><td class="muted">{{.Detail}}</td><td class="mono">{{.IP}}</td>
+</tr>{{else}}<tr><td colspan="6" class="muted">Empty.</td></tr>{{end}}
+</table>
+</div>
+{{template "footer" .}}

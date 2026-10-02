@@ -1,0 +1,31 @@
+# Placeholder installed by deploy/install.sh so that /etc/nftables.conf's
+# include is valid before dishnet-vpnd has generated its first rule set.
+# dishnet-vpnd replaces this file atomically on every reconcile.
+# Even this empty version is default-deny for traffic from VPN peers.
+table inet dishnet
+delete table inet dishnet
+table inet dishnet {
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		iifname "wg0" goto vpn_from_peer
+		oifname "wg0" goto vpn_to_peer
+	}
+	chain vpn_from_peer {
+		ct state invalid drop
+		ct state established,related accept
+		counter drop comment "dishnet default deny"
+	}
+	chain vpn_to_peer {
+		ct state established,related accept
+		counter drop comment "dishnet inbound to peer denied"
+	}
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname "wg0" goto vpn_to_hub
+	}
+	chain vpn_to_hub {
+		ct state established,related accept
+		ip daddr { 10.20.0.1 } icmp type echo-request accept
+		counter drop comment "dishnet peer to hub denied"
+	}
+}
