@@ -106,3 +106,12 @@ The Mac can only be a *client* in this pilot (the office gateway role is
 for the Windows machine that hosts Tally/RDP). To test the real use case,
 continue with §1–§2 on the office PC; the Mac then reaches it over RDP via
 Microsoft Remote Desktop from the App Store.
+
+## Results log
+
+| Date | Test | Result |
+|---|---|---|
+| 2026-10-02 | Hub deployed (v0.1.0 → v0.1.1), TLS issued, dashboard login, customer `DishNet Test` created, codes generated | ✔ |
+| 2026-10-02 | macOS client (Intel MacBook, wireguard-tools + wg-quick): activation via API → `10.20.0.17/32`, `AllowedIPs 10.20.0.1/32`; tunnel up; `ping 10.20.0.1` 3/3 replies (~300 ms); `ping 10.20.0.2` denied | ✔ first end-to-end tunnel |
+| — | Office gateway (Windows) + RDP from client | pending |
+| — | Revocation observed on a live tunnel | pending |
