@@ -158,3 +158,15 @@ func (d *DB) View(ctx context.Context, fn func(tx *Tx) error) error {
 func isUnique(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
+
+// Reapply runs one migration file's SQL again without recording it. It
+// exists for tests that must exercise a data-cleanup migration against rows
+// created after the schema was built.
+func (d *DB) Reapply(ctx context.Context, name string) error {
+	body, err := migrations.ReadFile("migrations/" + name)
+	if err != nil {
+		return err
+	}
+	_, err = d.sql.ExecContext(ctx, string(body))
+	return err
+}

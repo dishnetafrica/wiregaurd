@@ -7,7 +7,7 @@
     <Company>DishNet Africa</Company>
     <Product>DishNet Secure Connect</Product>
     <Copyright>© DishNet Africa. Powered by WireGuard® (a registered trademark of Jason A. Donenfeld).</Copyright>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 </Project>

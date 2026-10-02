@@ -455,7 +455,11 @@ func (h *Handler) customer(w http.ResponseWriter, r *http.Request) {
 		}
 		var rows []policyRow
 		for _, p := range policies {
-			row := policyRow{AccessPolicy: p, From: "any client", To: byID[p.ToDeviceID].Name}
+			to := byID[p.ToDeviceID]
+			row := policyRow{AccessPolicy: p, From: "any client", To: to.Name + " (" + to.VPNIP.String() + ")"}
+			if to.Status != store.DeviceActive {
+				row.To += " revoked"
+			}
 			if p.FromDeviceID != 0 {
 				row.From = byID[p.FromDeviceID].Name
 			}

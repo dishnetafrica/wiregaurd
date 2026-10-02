@@ -8,6 +8,21 @@ publishes its SHA-256 in `/api/v1/client/latest` when it fetches it). Both are
 published from GitHub Actions (*Run workflow* → version); the hub never
 builds anything itself.
 
+## Server v0.6.2 / client 0.4.2 — 2026-10-02 (clean-up and better diagnostics)
+
+- **Server v0.6.2:** migration `0006_prune_dead_policies` deletes policies
+  that name a revoked device (they never reached the firewall; they only
+  cluttered the customer page). The policy list now shows the gateway's VPN
+  address next to its name. No other data is touched.
+- **Client 0.4.2:** *Save diagnostics…* now includes WireGuard's own log
+  (`wireguard.exe /dumplog`), which records every handshake attempt. Needed to
+  explain the slow first handshake seen on the pilot office PC. Keys are never
+  in that log.
+
+Deploy: `sudo bash deploy/update-server.sh v0.6.2` and
+`sudo bash deploy/fetch-installer.sh client-v0.4.2`. Rollback: `v0.6.1` /
+`client-v0.4.1`.
+
 ## Server v0.6.1 / client 0.4.1 — 2026-10-02 (no duplicate office computers)
 
 Found in the pilot: the office PC KISHAN had registered five times (devices

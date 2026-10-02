@@ -586,3 +586,27 @@ func TestGatewayReactivationReplacesOldRecord(t *testing.T) {
 		t.Fatalf("client access: %+v", cfg.Access)
 	}
 }
+
+func TestMigrationPrunesPoliciesOfRevokedDevices(t *testing.T) {
+	h := newHarness(t)
+	c := h.customer("Prune", 3389)
+	gw := h.activate(h.code(c, store.RoleGateway), "OFFICE")
+	// Simulate a pre-v0.6.1 revocation that left its policy behind.
+	_ = h.svc.db.Tx(h.ctx, func(tx *store.Tx) error { return tx.RevokeDevice(gw.Device.ID, "old-style") })
+	_ = h.svc.db.Tx(h.ctx, func(tx *store.Tx) error {
+		if _, err := tx.InsertPolicy(store.AccessPolicy{CustomerID: c.ID, ToDeviceID: gw.Device.ID, Proto: store.ProtoTCP, Ports: []int{3389}, Label: "stale", Enabled: true}); err != nil {
+			t.Fatal(err)
+		}
+		return nil
+	})
+	if err := h.svc.db.Reapply(h.ctx, "0006_prune_dead_policies.sql"); err != nil {
+		t.Fatal(err)
+	}
+	_ = h.svc.db.Tx(h.ctx, func(tx *store.Tx) error {
+		pols, _ := tx.ListPolicies(c.ID)
+		if len(pols) != 0 {
+			t.Fatalf("stale policies survived: %+v", pols)
+		}
+		return nil
+	})
+}

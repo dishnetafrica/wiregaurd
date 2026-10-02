@@ -41,6 +41,8 @@ public static class DiagnosticsBundle
         await AddAsync(zip, "app.log", log.Tail(), ct);
         if (File.Exists(Paths.TunnelConfigFile))
             await AddAsync(zip, "tunnel.conf.redacted", await File.ReadAllTextAsync(Paths.TunnelConfigFile, ct), ct);
+        // WireGuard's own ring log: shows every handshake attempt and why it failed. Nothing in it is secret (keys are never logged).
+        try { await AddAsync(zip, "wireguard-log.txt", File.Exists(Paths.WireGuardExe) ? await RunAsync(Paths.WireGuardExe, "/dumplog", ct) : "wireguard.exe not found", ct); } catch (Exception ex) { await AddAsync(zip, "wireguard-log.txt", "failed: " + ex.Message, ct); }
         try { await AddAsync(zip, "ipconfig.txt", await RunAsync("ipconfig", "/all", ct), ct); } catch (Exception ex) { await AddAsync(zip, "ipconfig.txt", "failed: " + ex.Message, ct); }
         try { await AddAsync(zip, "route.txt", await RunAsync("route", "print", ct), ct); } catch (Exception ex) { await AddAsync(zip, "route.txt", "failed: " + ex.Message, ct); }
         return path;
