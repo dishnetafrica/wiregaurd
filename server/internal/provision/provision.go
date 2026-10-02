@@ -69,6 +69,7 @@ type Config struct {
 	Endpoint     string // host:port the clients dial
 	HubAddresses []netip.Addr
 	Keepalive    int
+	VPNPool      string // e.g. 10.20.0.0/24, advertised to gateways for their local firewall scope
 }
 
 type Service struct {
@@ -527,7 +528,9 @@ type DeviceConfig struct {
 	DNS           []string       `json:"dns"`
 	Access        []AccessTarget `json:"access"`
 	ConfigVersion int            `json:"config_version"`
-	Plan          string         `json:"plan"` // trial | paid | unlimited
+	GatewayPorts  []int          `json:"gateway_ports"` // gateway only: TCP ports clients are allowed to reach on it (for its local firewall)
+	VPNPool       string         `json:"vpn_pool"`      // the hub's VPN range, e.g. 10.20.0.0/24 (gateway firewall scope)
+	Plan          string         `json:"plan"`          // trial | paid | unlimited
 	ExpiresAt     string         `json:"subscription_expires_at,omitempty"`
 }
 
@@ -607,6 +610,21 @@ func (s *Service) ConfigFor(ctx context.Context, deviceID int64) (DeviceConfig, 
 			DeviceID: d.ID, DeviceName: d.Name, Role: d.Role, CustomerName: c.Name,
 			Address: netip.PrefixFrom(d.VPNIP, 32).String(), HubPublicKey: hubKey, Endpoint: s.cfg.Endpoint,
 			Keepalive: s.cfg.Keepalive, DNS: []string{}, ConfigVersion: d.ConfigVersion, AllowedIPs: []string{}, Plan: string(c.Plan),
+			GatewayPorts: []int{}, VPNPool: s.cfg.VPNPool,
+		}
+		if d.Role == store.RoleGateway {
+			seen := map[int]bool{}
+			for _, p := range policies {
+				if p.Enabled && p.ToDeviceID == d.ID && p.Proto == store.ProtoTCP {
+					for _, port := range p.Ports {
+						if !seen[port] {
+							seen[port] = true
+							cfg.GatewayPorts = append(cfg.GatewayPorts, port)
+						}
+					}
+				}
+			}
+			sort.Ints(cfg.GatewayPorts)
 		}
 		// The hub's own address is always routed so a client can `ping
 		// 10.20.0.1` as a connectivity check; the hub firewall allows only

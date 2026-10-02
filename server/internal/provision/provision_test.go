@@ -38,7 +38,7 @@ func newHarness(t *testing.T) *harness {
 	}
 	t.Cleanup(func() { db.Close() })
 	h := &harness{t: t, wg: wg.NewFake(), fw: &firewall.Fake{}, router: &FakeRouter{}, ctx: context.Background(), now: time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)}
-	h.svc = New(Config{Interface: "wg0", Endpoint: "165.227.89.92:51820", HubAddresses: []netip.Addr{netip.MustParseAddr("10.20.0.1")}}, db, h.wg, h.fw, h.router,
+	h.svc = New(Config{Interface: "wg0", Endpoint: "165.227.89.92:51820", HubAddresses: []netip.Addr{netip.MustParseAddr("10.20.0.1")}, VPNPool: "10.20.0.0/24"}, db, h.wg, h.fw, h.router,
 		slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
 	h.svc.SetClock(func() time.Time { return h.now })
 	if err := h.svc.EnsurePool(h.ctx, "primary", netip.MustParsePrefix("10.20.0.0/24"), 28); err != nil {
@@ -101,9 +101,13 @@ func TestActivationProvisionsPeerAndReturnsConfig(t *testing.T) {
 	if !h.hasPeer(gw.Device.PublicKey) || !h.hasPeer(cl.Device.PublicKey) {
 		t.Fatal("peers not on hub")
 	}
-	// Gateway routes the whole customer block back through the tunnel.
+	// Gateway routes the whole customer block back through the tunnel and learns which ports to open locally.
 	if len(gw.Config.AllowedIPs) != 1 || gw.Config.AllowedIPs[0] != "10.20.0.16/28" {
 		t.Fatalf("gateway allowed ips %v", gw.Config.AllowedIPs)
+	}
+	gwCfg, _ := h.svc.ConfigFor(h.ctx, gw.Device.ID)
+	if len(gwCfg.GatewayPorts) != 2 || gwCfg.GatewayPorts[0] != 3389 || gwCfg.GatewayPorts[1] != 9000 || gwCfg.VPNPool != "10.20.0.0/24" {
+		t.Fatalf("gateway ports/pool: %v %s", gwCfg.GatewayPorts, gwCfg.VPNPool)
 	}
 	// Client only sees the hub (ping only) and the gateway: split tunnel, nothing else.
 	if len(cl.Config.AllowedIPs) != 2 || cl.Config.AllowedIPs[0] != "10.20.0.1/32" || cl.Config.AllowedIPs[1] != "10.20.0.17/32" {

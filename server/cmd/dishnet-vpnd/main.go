@@ -135,7 +135,7 @@ func buildService(cfg Config, log *slog.Logger) (*provision.Service, error) {
 			hubAddrs = append(hubAddrs, a)
 		}
 	}
-	svc := provision.New(provision.Config{Interface: cfg.Interface, Endpoint: cfg.Endpoint, HubAddresses: hubAddrs}, db, backend, fw, router, log)
+	svc := provision.New(provision.Config{Interface: cfg.Interface, Endpoint: cfg.Endpoint, HubAddresses: hubAddrs, VPNPool: cfg.PoolCIDR}, db, backend, fw, router, log)
 	pool, err := netip.ParsePrefix(cfg.PoolCIDR)
 	if err != nil {
 		return nil, fmt.Errorf("DISHNET_POOL: %w", err)
@@ -188,6 +188,7 @@ func serve(cfg Config, log *slog.Logger) error {
 	api.New(svc, log, cfg.TrustProxy).Register(mux)
 	api.NewDownloads(svc, cfg.InstallerPath, log).Register(mux)
 	api.NewTrialPages(svc, cfg.SupportText).Register(mux)
+	api.NewUpdates(cfg.InstallerPath, cfg.PublicURL).Register(mux)
 	if cfg.NotifyWebhook != "" {
 		svc.SetNotifier(&provision.WebhookNotifier{URL: cfg.NotifyWebhook})
 	}
